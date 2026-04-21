@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
+import http from "node:http";
 import { join } from "node:path";
 
 const root = import.meta.dir.endsWith("/tests")
@@ -34,5 +35,47 @@ describe("log e2e smoke", () => {
     const output = run(["run", "src/cli.ts", "--summary-text"], '{"level":"info","message":"hello"}\n');
     expect(output).toContain("entries=");
     expect(output).toContain("json=");
+  });
+
+  test("summarizes command output", () => {
+    const output = run([
+      "dist/cli.js",
+      "--cmd",
+      "printf '{\"level\":\"info\",\"message\":\"from-cmd\"}\\nplain line\\n'",
+      "--summary-json",
+    ]);
+    expect(output).toContain("\"entries\": 2");
+    expect(output).toContain("\"json\": 1");
+    expect(output).toContain("\"text\": 1");
+  });
+
+  test("summarizes a streaming URL", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.write('{"level":"info","message":"from-url"}\n');
+      res.end("plain text\n");
+    });
+
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to start test server");
+    }
+
+    try {
+      const output = run([
+        "dist/cli.js",
+        "--url",
+        `http://127.0.0.1:${address.port}`,
+        "--summary-json",
+      ]);
+      expect(output).toContain("\"entries\": 2");
+      expect(output).toContain("\"json\": 1");
+      expect(output).toContain("\"text\": 1");
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close(error => (error ? reject(error) : resolve())),
+      );
+    }
   });
 });

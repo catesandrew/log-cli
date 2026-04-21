@@ -40229,6 +40229,19 @@ function LogScreen() {
   const visibleEntries = import_react26.useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
   const visibleCount = Math.max(8, size.rows - 10);
+  const listWidth = Math.max(42, Math.floor(size.columns * 0.52));
+  const listColumns = import_react26.useMemo(() => {
+    const timeWidth = 24;
+    const levelWidth = 8;
+    const gap = 2;
+    const messageWidth = Math.max(16, listWidth - timeWidth - levelWidth - gap - 4);
+    return config.columns.map((column) => {
+      if (column.key === "message") {
+        return { ...column, width: messageWidth };
+      }
+      return column;
+    });
+  }, [config.columns, listWidth]);
   const windowed = useVirtualWindow(visibleEntries, selectedIndex, visibleCount);
   const selectedEntry = visibleEntries[selectedIndex];
   const jsonRows = import_react26.useMemo(() => {
@@ -40236,8 +40249,6 @@ function LogScreen() {
       return [];
     return flattenJsonTree(selectedEntry.jsonValue, new Set(activeSource?.expandedPaths ?? ["root"]));
   }, [activeSource?.expandedPaths, detailMode, selectedEntry]);
-  const perfRef = import_react26.useRef({ renders: 0, at: Date.now() });
-  perfRef.current.renders += 1;
   import_react26.useEffect(() => {
     const cleanup = startSourceManager(store.getState().sources.map((source) => source.spec), config, {
       onBatch(sourceId, entries, droppedCount) {
@@ -40273,18 +40284,6 @@ function LogScreen() {
     });
     return cleanup;
   }, [config, setState, store]);
-  import_react26.useEffect(() => {
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const elapsed = now - perfRef.current.at;
-      if (elapsed <= 0)
-        return;
-      const fps2 = Math.round(perfRef.current.renders * 1000 / elapsed);
-      perfRef.current = { renders: 0, at: now };
-      setState((prev) => prev.fps === fps2 ? prev : { ...prev, fps: fps2 });
-    }, 500);
-    return () => clearInterval(timer);
-  }, [setState]);
   useInput2((input, key) => {
     if (focusMode === "filter") {
       if (key.escape) {
@@ -40441,13 +40440,13 @@ function LogScreen() {
       flexDirection: "row",
       children: [
         /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
-          width: Math.max(40, Math.floor(size.columns * 0.52)),
+          width: listWidth,
           flexDirection: "column",
           children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(LogList, {
             entries: windowed.visible,
             selectedIndex,
             startIndex: windowed.start,
-            columns: config.columns
+            columns: listColumns
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {

@@ -44,13 +44,20 @@ cat examples/mixed.log | bun run src/cli.ts
 URL stream:
 
 ```bash
-bun run src/cli.ts --url https://example.com/logs
+bun run src/cli.ts -- --url https://example.com/logs
 ```
 
 Command stream:
 
 ```bash
-bun run src/cli.ts --cmd "docker logs -f my-container 2>&1"
+bun run src/cli.ts -- --cmd "docker logs -f my-container 2>&1"
+```
+
+Installed binary:
+
+```bash
+./bin/log --cmd "docker logs -f my-container 2>&1"
+./bin/log --url https://example.com/logs
 ```
 
 ## Headless summary modes
