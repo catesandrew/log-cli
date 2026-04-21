@@ -16,6 +16,7 @@ export function Footer(props: {
   sourceCount: number;
   mergedFilter: string;
   mergedQuery: string;
+  detailModeHint: string;
   columns: number;
 }): React.ReactNode {
   const primaryStatus = props.statusLine;
@@ -37,7 +38,7 @@ export function Footer(props: {
     Math.max(24, props.columns - 2),
   );
   const keyLineOne = fitInlineParts(
-    ["j/k move", "Enter detail", "F filter", "Q query", "/ search", "Space fold"],
+    ["j/k move", "Enter detail", "F filter", "Q query", "/ search", props.detailModeHint],
     Math.max(24, props.columns - 2),
   );
   const keyLineTwo = fitInlineParts(

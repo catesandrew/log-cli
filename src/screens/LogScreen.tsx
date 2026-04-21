@@ -16,6 +16,7 @@ import { buildFilter } from "../lib/filter";
 import { applyEntryBatch } from "../lib/ingestState";
 import { flattenJsonTree } from "../lib/jsonTree";
 import { computePaneWidths } from "../lib/layout";
+import { sliceListWindow } from "../lib/listWindow";
 import { createMergedSourceState } from "../lib/mergedSource";
 import { buildQuery } from "../lib/query";
 import { applySuggestionToQuery, buildQuerySuggestions } from "../lib/queryAutocomplete";
@@ -130,8 +131,16 @@ export function LogScreen(): React.ReactNode {
       column.key === "message" ? { ...column, width: messageWidth } : column,
     );
   }, [config.columns, listWidth, mergedView, sourceWidth]);
-  const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), Math.max(0, visibleEntries.length - visibleCount)));
-  const visibleWindow = visibleEntries.slice(start, start + visibleCount);
+  const { startIndex: start, window: visibleWindow } = useMemo(
+    () =>
+      sliceListWindow({
+        entries: visibleEntries,
+        selectedIndex,
+        maxRows: visibleCount,
+        mergedView,
+      }),
+    [mergedView, selectedIndex, visibleCount, visibleEntries],
+  );
   const selectedEntry = visibleEntries[selectedIndex];
   const jsonRows: JsonTreeRow[] = useMemo(() => {
     if (!selectedEntry || selectedEntry.kind !== "json" || detailMode !== "tree") return [];
@@ -149,6 +158,14 @@ export function LogScreen(): React.ReactNode {
     selectedEntry?.kind === "json" && detailMode === "tree"
       ? detailSearch.matches
       : textSearch.matches;
+  const detailModeHint =
+    !selectedEntry
+      ? "m tree/raw"
+      : selectedEntry.kind === "json"
+      ? detailMode === "tree"
+        ? "Space fold"
+        : "m tree/raw"
+      : "raw text";
   const querySuggestions = useMemo(
     () => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft),
     [activeSource?.entries, queryDraft],
@@ -727,6 +744,7 @@ export function LogScreen(): React.ReactNode {
           sourceCount={sources.length}
           mergedFilter={mergedFilter}
           mergedQuery={mergedQuery}
+          detailModeHint={detailModeHint}
           columns={size.columns}
         />
       }

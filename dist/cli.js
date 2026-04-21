@@ -41833,6 +41833,7 @@ function DetailPane(props) {
       children: "No entry selected"
     }, undefined, false, undefined, this);
   }
+  const isJsonTree = props.entry.kind === "json" && props.detailMode === "tree";
   const width = Math.max(24, props.paneWidth ?? 40);
   const headerLineCount = props.searchTerm ? 3 : 2;
   const contentMaxLines = Math.max(3, (props.paneHeight ?? 10) - headerLineCount);
@@ -41850,7 +41851,7 @@ function DetailPane(props) {
     children: [
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         color: "cyan",
-        children: trimLineForPane(`${props.entry.kind === "json" ? "JSON detail" : "Text detail"} \xB7 mode:${props.detailMode}`, width)
+        children: trimLineForPane(`${props.entry.kind === "json" ? "JSON detail" : "Text detail"} \xB7 mode:${isJsonTree ? "tree" : "raw"}`, width)
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
@@ -41862,7 +41863,7 @@ function DetailPane(props) {
       }, undefined, false, undefined, this) : null,
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
         flexDirection: "column",
-        children: props.entry.kind === "json" && props.detailMode === "tree" ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(JsonTree, {
+        children: isJsonTree ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(JsonTree, {
           rows: props.jsonRows,
           cursor: props.jsonCursor
         }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TextDetail, {
@@ -42033,7 +42034,7 @@ function Footer(props) {
     `srch:${props.search ? "on" : "off"}`,
     `fps:${props.fps}`
   ], Math.max(24, props.columns - 2));
-  const keyLineOne = fitInlineParts(["j/k move", "Enter detail", "F filter", "Q query", "/ search", "Space fold"], Math.max(24, props.columns - 2));
+  const keyLineOne = fitInlineParts(["j/k move", "Enter detail", "F filter", "Q query", "/ search", props.detailModeHint], Math.max(24, props.columns - 2));
   const keyLineTwo = fitInlineParts([
     "Tab src",
     "Right/Ctrl+Y accept",
@@ -42243,7 +42244,7 @@ function HelpModal() {
         children: "Enter switch list/detail focus"
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
-        children: "Space folds JSON node in detail mode"
+        children: "Space folds JSON nodes in tree detail mode"
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
         children: "F opens filter mode"
@@ -42255,7 +42256,7 @@ function HelpModal() {
         children: "Tab / Shift+Tab change tab"
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
-        children: "m toggles tree/raw detail mode"
+        children: "m toggles tree/raw detail mode for JSON entries"
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
         children: "Esc closes modal or returns to list"
@@ -42628,6 +42629,48 @@ function flattenJsonTree(value, expanded) {
   const rows = [];
   walk("root", value, "root", 0, expanded, rows);
   return rows;
+}
+
+// src/lib/listWindow.ts
+function getMergedEntryRenderRows(entries, startIndex, index) {
+  if (index < startIndex || index >= entries.length) {
+    return 0;
+  }
+  const entry = entries[index];
+  const previous = index > startIndex ? entries[index - 1] : undefined;
+  const hasBoundary = !previous || previous.sourceId !== entry?.sourceId;
+  return 1 + (hasBoundary ? 1 : 0);
+}
+function buildMergedWindow(entries, startIndex, maxRows) {
+  const window2 = [];
+  let usedRows = 0;
+  for (let index = startIndex;index < entries.length; index += 1) {
+    const nextRows = getMergedEntryRenderRows(entries, startIndex, index);
+    if (window2.length > 0 && usedRows + nextRows > maxRows) {
+      break;
+    }
+    usedRows += nextRows;
+    window2.push(entries[index]);
+  }
+  return window2;
+}
+function sliceListWindow(input) {
+  const maxRows = Math.max(1, input.maxRows);
+  const selectedIndex = Math.min(Math.max(0, input.selectedIndex), Math.max(0, input.entries.length - 1));
+  if (!input.mergedView) {
+    const startIndex2 = Math.max(0, Math.min(selectedIndex - Math.floor(maxRows / 2), Math.max(0, input.entries.length - maxRows)));
+    return {
+      startIndex: startIndex2,
+      window: input.entries.slice(startIndex2, startIndex2 + maxRows)
+    };
+  }
+  let startIndex = Math.max(0, selectedIndex - Math.floor(maxRows / 2));
+  let window2 = buildMergedWindow(input.entries, startIndex, maxRows);
+  if (selectedIndex >= startIndex + window2.length) {
+    startIndex = selectedIndex;
+    window2 = buildMergedWindow(input.entries, startIndex, maxRows);
+  }
+  return { startIndex, window: window2 };
 }
 
 // src/lib/mergedSource.ts
@@ -43428,8 +43471,12 @@ function LogScreen() {
     const messageWidth = Math.max(18, listWidth - timeWidth - levelWidth - gap - 4 - (mergedView ? sourceWidth + 1 : 0));
     return config.columns.map((column) => column.key === "message" ? { ...column, width: messageWidth } : column);
   }, [config.columns, listWidth, mergedView, sourceWidth]);
-  const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), Math.max(0, visibleEntries.length - visibleCount)));
-  const visibleWindow = visibleEntries.slice(start, start + visibleCount);
+  const { startIndex: start, window: visibleWindow } = import_react25.useMemo(() => sliceListWindow({
+    entries: visibleEntries,
+    selectedIndex,
+    maxRows: visibleCount,
+    mergedView
+  }), [mergedView, selectedIndex, visibleCount, visibleEntries]);
   const selectedEntry = visibleEntries[selectedIndex];
   const jsonRows = import_react25.useMemo(() => {
     if (!selectedEntry || selectedEntry.kind !== "json" || detailMode !== "tree")
@@ -43439,6 +43486,7 @@ function LogScreen() {
   const textSearch = import_react25.useMemo(() => createTextSearch(selectedEntry?.raw ?? "", detailSearchTerm), [detailSearchTerm, selectedEntry?.raw]);
   const detailSearch = import_react25.useMemo(() => createDetailSearch(jsonRows, detailSearchTerm), [jsonRows, detailSearchTerm]);
   const detailMatches = selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.matches : textSearch.matches;
+  const detailModeHint = !selectedEntry ? "m tree/raw" : selectedEntry.kind === "json" ? detailMode === "tree" ? "Space fold" : "m tree/raw" : "raw text";
   const querySuggestions = import_react25.useMemo(() => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft), [activeSource?.entries, queryDraft]);
   const selectedSuggestionIndex = Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1));
   const renderCountRef = import_react25.useRef(0);
@@ -43885,6 +43933,7 @@ function LogScreen() {
       sourceCount: sources.length,
       mergedFilter,
       mergedQuery,
+      detailModeHint,
       columns: size.columns
     }, undefined, false, undefined, this),
     overlay: showHelp ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(HelpModal, {}, undefined, false, undefined, this) : undefined

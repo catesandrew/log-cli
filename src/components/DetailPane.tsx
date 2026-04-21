@@ -22,6 +22,7 @@ export function DetailPane(props: {
     return <Text dimColor>No entry selected</Text>;
   }
 
+  const isJsonTree = props.entry.kind === "json" && props.detailMode === "tree";
   const width = Math.max(24, props.paneWidth ?? 40);
   const headerLineCount = props.searchTerm ? 3 : 2;
   const contentMaxLines = Math.max(3, (props.paneHeight ?? 10) - headerLineCount);
@@ -44,7 +45,7 @@ export function DetailPane(props: {
     <Box flexDirection="column">
       <Text color="cyan">
         {trimLineForPane(
-          `${props.entry.kind === "json" ? "JSON detail" : "Text detail"} · mode:${props.detailMode}`,
+          `${props.entry.kind === "json" ? "JSON detail" : "Text detail"} · mode:${isJsonTree ? "tree" : "raw"}`,
           width,
         )}
       </Text>
@@ -58,7 +59,7 @@ export function DetailPane(props: {
         <Text dimColor>{trimLineForPane(searchLabel, width)}</Text>
       ) : null}
       <Box flexDirection="column">
-        {props.entry.kind === "json" && props.detailMode === "tree" ? (
+        {isJsonTree ? (
           <JsonTree rows={props.jsonRows} cursor={props.jsonCursor} />
         ) : (
           <TextDetail view={textView} searchTerm={props.searchTerm} />
