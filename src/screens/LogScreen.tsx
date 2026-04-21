@@ -18,7 +18,7 @@ import { flattenJsonTree } from "../lib/jsonTree";
 import { computePaneWidths } from "../lib/layout";
 import { mergeEntriesByTime } from "../lib/merge";
 import { buildQuery } from "../lib/query";
-import { buildQuerySuggestions } from "../lib/queryAutocomplete";
+import { applySuggestionToQuery, buildQuerySuggestions } from "../lib/queryAutocomplete";
 import { startSourceManager } from "../lib/sourceManager";
 import { createTextSearch } from "../lib/textSearch";
 import { useAppState, useAppStateStore, useSetAppState } from "../state/AppState";
@@ -236,7 +236,7 @@ export function LogScreen(): React.ReactNode {
         if (!suggestion) return;
         setState(prev => ({
           ...prev,
-          queryDraft: suggestion,
+          queryDraft: applySuggestionToQuery(prev.queryDraft, suggestion),
         }));
         return;
       }
@@ -541,6 +541,7 @@ export function LogScreen(): React.ReactNode {
                 searchTerm={detailSearchTerm}
                 searchMatches={detailMatches}
                 mergedView={mergedView}
+                paneWidth={paneWidths.detailWidth}
               />
             )}
           </Box>

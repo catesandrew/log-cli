@@ -8,8 +8,13 @@ const DEFAULT_SNIPPETS = [
   'message =~ /health/',
 ];
 
+export function extractActiveQueryFragment(input: string): string {
+  const match = /([A-Za-z0-9_.-]+)$/.exec(input);
+  return match?.[1] ?? "";
+}
+
 export function buildQuerySuggestions(entries: LogEntry[], input: string): string[] {
-  const query = input.trim().toLowerCase();
+  const query = extractActiveQueryFragment(input).trim().toLowerCase();
   const fieldNames = new Set<string>();
   for (const entry of entries) {
     for (const key of Object.keys(entry.fieldIndex)) {
@@ -30,11 +35,20 @@ export function buildQuerySuggestions(entries: LogEntry[], input: string): strin
 }
 
 export function buildInlineCompletion(input: string, suggestion: string): string {
-  if (!input) {
+  const fragment = extractActiveQueryFragment(input);
+  if (!fragment) {
     return suggestion;
   }
-  if (suggestion.toLowerCase().startsWith(input.toLowerCase())) {
-    return suggestion.slice(input.length);
+  if (suggestion.toLowerCase().startsWith(fragment.toLowerCase())) {
+    return suggestion.slice(fragment.length);
   }
   return "";
+}
+
+export function applySuggestionToQuery(input: string, suggestion: string): string {
+  const fragment = extractActiveQueryFragment(input);
+  if (!fragment) {
+    return suggestion;
+  }
+  return `${input.slice(0, input.length - fragment.length)}${suggestion}`;
 }

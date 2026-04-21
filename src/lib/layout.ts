@@ -29,3 +29,13 @@ export function fitInlineParts(parts: string[], maxWidth: number): string {
   }
   return line;
 }
+
+export function trimLineForPane(text: string, maxWidth: number): string {
+  if (text.length <= maxWidth) {
+    return text;
+  }
+  if (maxWidth <= 1) {
+    return "…";
+  }
+  return `${text.slice(0, Math.max(0, maxWidth - 1))}…`;
+}

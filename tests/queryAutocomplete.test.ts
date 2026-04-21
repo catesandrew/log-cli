@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildInlineCompletion, buildQuerySuggestions } from "../src/lib/queryAutocomplete.ts";
+import {
+  applySuggestionToQuery,
+  buildInlineCompletion,
+  buildQuerySuggestions,
+  extractActiveQueryFragment,
+} from "../src/lib/queryAutocomplete.ts";
 import { parseLine } from "../src/lib/parseLine.ts";
 
 describe("buildQuerySuggestions", () => {
@@ -28,5 +33,16 @@ describe("buildQuerySuggestions", () => {
   test("builds an inline completion suffix from the active suggestion", () => {
     expect(buildInlineCompletion('lev', 'level = "error"')).toBe('el = "error"');
     expect(buildInlineCompletion('message', 'level = "error"')).toBe("");
+  });
+
+  test("extracts the active query fragment at the end of the draft", () => {
+    expect(extractActiveQueryFragment('level = "error" and ser')).toBe("ser");
+    expect(extractActiveQueryFragment("")).toBe("");
+  });
+
+  test("applies a suggestion to only the active fragment", () => {
+    expect(applySuggestionToQuery('level = "error" and ser', 'service = ""')).toBe(
+      'level = "error" and service = ""',
+    );
   });
 });

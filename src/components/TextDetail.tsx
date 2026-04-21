@@ -1,9 +1,20 @@
 import React from "react";
-import { Text } from "../ink";
+import { Box, Text } from "../ink";
 import { parseAnsiText } from "../lib/ansi";
 import { buildHighlightedSegments } from "../lib/textHighlight";
 
 export function TextDetail(props: { text: string; searchTerm?: string }): React.ReactNode {
+  const lines = props.text.split(/\r?\n/);
+  if (lines.length > 1) {
+    return (
+      <Box flexDirection="column">
+        {lines.map((line, index) => (
+          <TextDetail key={`${line}-${index}`} text={line} searchTerm={props.searchTerm} />
+        ))}
+      </Box>
+    );
+  }
+
   const segments = parseAnsiText(props.text);
   if (segments.length === 0) {
     return <PlainText text={props.text} searchTerm={props.searchTerm} />;

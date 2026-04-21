@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { computePaneWidths, fitInlineParts } from "../src/lib/layout.ts";
+import { computePaneWidths, fitInlineParts, trimLineForPane } from "../src/lib/layout.ts";
 
 describe("layout helpers", () => {
   test("computes balanced pane widths for narrow terminals", () => {
@@ -16,5 +16,11 @@ describe("layout helpers", () => {
     );
     expect(line.length).toBeLessThanOrEqual(40);
     expect(line).toContain("focus:list");
+  });
+
+  test("trims long pane lines without wrapping", () => {
+    const line = trimLineForPane("this is a very long detail header line", 12);
+    expect(line.length).toBeLessThanOrEqual(12);
+    expect(line.endsWith("…")).toBe(true);
   });
 });

@@ -41579,6 +41579,43 @@ var init_clipboardy = __esm(() => {
   clipboardy_default = clipboard5;
 });
 
+// src/lib/layout.ts
+function computePaneWidths(columns) {
+  const gap = columns >= 100 ? 3 : 2;
+  const listWidth = Math.max(40, Math.min(Math.floor(columns * (columns >= 120 ? 0.5 : 0.46)), columns - 28));
+  const detailWidth = Math.max(24, columns - listWidth - gap);
+  return {
+    listWidth,
+    detailWidth,
+    gap
+  };
+}
+function fitInlineParts(parts, maxWidth) {
+  const separator = " \xB7 ";
+  let line = "";
+  for (const part of parts) {
+    const candidate = line ? `${line}${separator}${part}` : part;
+    if (candidate.length <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (!line) {
+      return part.slice(0, Math.max(0, maxWidth - 1)) + (part.length > maxWidth ? "\u2026" : "");
+    }
+    break;
+  }
+  return line;
+}
+function trimLineForPane(text, maxWidth) {
+  if (text.length <= maxWidth) {
+    return text;
+  }
+  if (maxWidth <= 1) {
+    return "\u2026";
+  }
+  return `${text.slice(0, Math.max(0, maxWidth - 1))}\u2026`;
+}
+
 // src/components/JsonTree.tsx
 function JsonTree(props) {
   return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Box2, {
@@ -41683,6 +41720,16 @@ function buildHighlightedSegments(text, term) {
 
 // src/components/TextDetail.tsx
 function TextDetail(props) {
+  const lines = props.text.split(/\r?\n/);
+  if (lines.length > 1) {
+    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
+      flexDirection: "column",
+      children: lines.map((line, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(TextDetail, {
+        text: line,
+        searchTerm: props.searchTerm
+      }, `${line}-${index}`, false, undefined, this))
+    }, undefined, false, undefined, this);
+  }
   const segments = parseAnsiText(props.text);
   if (segments.length === 0) {
     return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(PlainText, {
@@ -41732,33 +41779,21 @@ function DetailPane(props) {
       children: "No entry selected"
     }, undefined, false, undefined, this);
   }
+  const width = Math.max(24, props.paneWidth ?? 40);
   return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         color: "cyan",
-        wrap: "truncate-end",
-        children: [
-          props.entry.kind === "json" ? "JSON detail" : "Text detail",
-          " \xB7 mode:",
-          props.detailMode
-        ]
-      }, undefined, true, undefined, this),
+        children: trimLineForPane(`${props.entry.kind === "json" ? "JSON detail" : "Text detail"} \xB7 mode:${props.detailMode}`, width)
+      }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
-        wrap: "truncate-end",
-        children: [
-          props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} \xB7 ` : "",
-          props.entry.prefix ? `${props.entry.prefix} \xB7 ` : "",
-          props.entry.timeText ?? "no-time",
-          " \xB7 ",
-          String(props.entry.levelNormalized)
-        ]
-      }, undefined, true, undefined, this),
+        children: trimLineForPane(`${props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} \xB7 ` : ""}${props.entry.prefix ? `${props.entry.prefix} \xB7 ` : ""}${props.entry.timeText ?? "no-time"} \xB7 ${String(props.entry.levelNormalized)}`, width)
+      }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
-        wrap: "truncate-end",
-        children: props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}` : "search:off"
+        children: trimLineForPane(props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}` : "search:off", width)
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
         marginTop: 1,
@@ -41915,34 +41950,6 @@ var init_FilterBar = __esm(async () => {
   ]);
   jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
 });
-
-// src/lib/layout.ts
-function computePaneWidths(columns) {
-  const gap = columns >= 100 ? 3 : 2;
-  const listWidth = Math.max(40, Math.min(Math.floor(columns * (columns >= 120 ? 0.5 : 0.46)), columns - 28));
-  const detailWidth = Math.max(24, columns - listWidth - gap);
-  return {
-    listWidth,
-    detailWidth,
-    gap
-  };
-}
-function fitInlineParts(parts, maxWidth) {
-  const separator = " \xB7 ";
-  let line = "";
-  for (const part of parts) {
-    const candidate = line ? `${line}${separator}${part}` : part;
-    if (candidate.length <= maxWidth) {
-      line = candidate;
-      continue;
-    }
-    if (!line) {
-      return part.slice(0, Math.max(0, maxWidth - 1)) + (part.length > maxWidth ? "\u2026" : "");
-    }
-    break;
-  }
-  return line;
-}
 
 // src/components/Footer.tsx
 function Footer(props) {
@@ -42158,8 +42165,12 @@ var init_LogList = __esm(async () => {
 });
 
 // src/lib/queryAutocomplete.ts
+function extractActiveQueryFragment(input) {
+  const match = /([A-Za-z0-9_.-]+)$/.exec(input);
+  return match?.[1] ?? "";
+}
 function buildQuerySuggestions(entries, input) {
-  const query = input.trim().toLowerCase();
+  const query = extractActiveQueryFragment(input).trim().toLowerCase();
   const fieldNames = new Set;
   for (const entry of entries) {
     for (const key of Object.keys(entry.fieldIndex)) {
@@ -42174,13 +42185,21 @@ function buildQuerySuggestions(entries, input) {
   return combined.filter((item) => item.toLowerCase().includes(query)).slice(0, 8);
 }
 function buildInlineCompletion(input, suggestion) {
-  if (!input) {
+  const fragment = extractActiveQueryFragment(input);
+  if (!fragment) {
     return suggestion;
   }
-  if (suggestion.toLowerCase().startsWith(input.toLowerCase())) {
-    return suggestion.slice(input.length);
+  if (suggestion.toLowerCase().startsWith(fragment.toLowerCase())) {
+    return suggestion.slice(fragment.length);
   }
   return "";
+}
+function applySuggestionToQuery(input, suggestion) {
+  const fragment = extractActiveQueryFragment(input);
+  if (!fragment) {
+    return suggestion;
+  }
+  return `${input.slice(0, input.length - fragment.length)}${suggestion}`;
 }
 var DEFAULT_SNIPPETS;
 var init_queryAutocomplete = __esm(() => {
@@ -42197,6 +42216,7 @@ var init_queryAutocomplete = __esm(() => {
 function QueryBar(props) {
   const visibleSuggestions = props.suggestions.slice(0, 5);
   const activeSuggestion = visibleSuggestions[props.selectedSuggestionIndex] ?? "";
+  const activeFragment = extractActiveQueryFragment(props.value);
   const inlineCompletion = buildInlineCompletion(props.value, activeSuggestion);
   return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
     flexDirection: "column",
@@ -42228,7 +42248,9 @@ function QueryBar(props) {
       /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
         dimColor: true,
         children: [
-          "Tab/Shift+Tab cycles suggestions. Enter applies current query. Active hint: ",
+          "Tab/Shift+Tab cycles suggestions. Enter applies current query. Fragment: ",
+          activeFragment || "none",
+          " \xB7 hint: ",
           activeSuggestion || "none"
         ]
       }, undefined, true, undefined, this),
@@ -43292,7 +43314,7 @@ function LogScreen() {
           return;
         setState((prev) => ({
           ...prev,
-          queryDraft: suggestion
+          queryDraft: applySuggestionToQuery(prev.queryDraft, suggestion)
         }));
         return;
       }
@@ -43550,7 +43572,8 @@ function LogScreen() {
             jsonCursor: activeSource?.detailCursor ?? 0,
             searchTerm: detailSearchTerm,
             searchMatches: detailMatches,
-            mergedView
+            mergedView,
+            paneWidth: paneWidths.detailWidth
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]
