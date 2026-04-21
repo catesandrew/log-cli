@@ -9,6 +9,13 @@ export function startFileSource(
   events: SourceEvents,
   config: AppConfig,
 ): SourceHandle {
+  // Named pipes (FIFOs) are treated as continuous streams: no batching for
+  // low latency, and "stream ended" rather than "Loaded" on completion.
+  let isFifo = false;
+  try {
+    isFifo = fs.statSync(source.filePath!).isFIFO();
+  } catch { /* treat as regular file if stat fails */ }
+
   const stream = fs.createReadStream(source.filePath!, { encoding: "utf8" });
   const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
   let lineNumber = 0;
@@ -28,15 +35,21 @@ export function startFileSource(
     try {
       for await (const line of rl) {
         lineNumber += 1;
-        batch.push(parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }, config));
-        if (batch.length >= 200) {
-          events.onEntries(source.id, batch.splice(0, batch.length));
+        const entry = parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }, config);
+        if (isFifo) {
+          // Stream each line immediately — no batching for named pipes
+          events.onEntries(source.id, [entry]);
+        } else {
+          batch.push(entry);
+          if (batch.length >= 200) {
+            events.onEntries(source.id, batch.splice(0, batch.length));
+          }
         }
       }
       if (batch.length > 0) {
         events.onEntries(source.id, batch);
       }
-      finish(`Loaded file source ${source.label}`);
+      finish(isFifo ? `${source.label} stream ended` : `Loaded file source ${source.label}`);
     } catch (error) {
       finish(`File source error: ${error instanceof Error ? error.message : String(error)}`);
     }

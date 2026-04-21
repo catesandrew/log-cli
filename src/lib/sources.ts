@@ -53,8 +53,17 @@ export function validateSources(sources: SourceSpec[]): string | null {
   }
 
   for (const source of sources) {
-    if (source.kind === "file" && source.filePath && !fs.existsSync(source.filePath)) {
-      return `File not found: ${source.filePath}`;
+    if (source.kind === "file" && source.filePath) {
+      let stats: fs.Stats;
+      try {
+        stats = fs.statSync(source.filePath);
+      } catch {
+        return `File not found: ${source.filePath}`;
+      }
+      if (stats.isDirectory()) {
+        return `Path is a directory, not a file: ${source.filePath}`;
+      }
+      // Regular files and named pipes (FIFOs) are both accepted
     }
   }
 
