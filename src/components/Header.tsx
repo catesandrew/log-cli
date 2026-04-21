@@ -1,14 +1,26 @@
 import React from "react";
 import { Box, Text } from "../ink";
 import type { SourceState } from "../types";
+import { fitInlineParts } from "../lib/layout";
 
 export function Header(props: {
   source: SourceState | undefined;
   activeIndex: number;
   totalSources: number;
   mergedView: boolean;
+  columns: number;
 }): React.ReactNode {
   const source = props.source;
+  const sourceLine = fitInlineParts(
+    [
+      (props.mergedView ? "all sources" : source?.spec.label) ?? "no source",
+      `entries=${source?.entries.length ?? 0}`,
+      `json=${source?.jsonCount ?? 0}`,
+      `text=${source?.textCount ?? 0}`,
+      `dropped=${source?.droppedCount ?? 0}`,
+    ],
+    Math.max(20, props.columns - 2),
+  );
   return (
     <Box flexDirection="column">
       <Box justifyContent="space-between">
@@ -17,15 +29,8 @@ export function Header(props: {
           {props.mergedView ? "merged" : `tab ${props.activeIndex + 1}/${props.totalSources}`}
         </Text>
       </Box>
-      <Box justifyContent="space-between">
-        <Text dimColor>{(props.mergedView ? "all sources" : source?.spec.label) ?? "no source"}</Text>
-        <Text dimColor>entries={source?.entries.length ?? 0}</Text>
-      </Box>
-      <Box justifyContent="space-between">
-        <Text dimColor>json={source?.jsonCount ?? 0} · text={source?.textCount ?? 0}</Text>
-        <Text dimColor>dropped={source?.droppedCount ?? 0}</Text>
-      </Box>
-      <Text dimColor>{"-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))}</Text>
+      <Text dimColor>{sourceLine}</Text>
+      <Text dimColor>{"-".repeat(Math.max(0, props.columns - 2))}</Text>
     </Box>
   );
 }

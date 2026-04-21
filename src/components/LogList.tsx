@@ -16,12 +16,22 @@ export function LogList(props: {
   startIndex: number;
   columns: ColumnConfig[];
   showSourceLabel: boolean;
+  sourceWidth: number;
 }): React.ReactNode {
+  const headerLabels = props.columns.map(column => ({
+    ...column,
+    label:
+      column.key === "level"
+        ? "LVL"
+        : column.key === "message"
+          ? "MSG"
+          : column.label,
+  }));
   return (
     <Box flexDirection="column">
-      <Text dimColor>
-        {props.showSourceLabel ? `${cell("SOURCE", 16)} ` : ""}
-        {props.columns.map(column => cell(column.label, column.width)).join(" ")}
+      <Text dimColor wrap="truncate-end">
+        {props.showSourceLabel ? `${cell("SOURCE", props.sourceWidth)} ` : ""}
+        {headerLabels.map(column => cell(column.label, column.width)).join(" ")}
       </Text>
       {props.entries.map((entry, index) => {
         const absoluteIndex = props.startIndex + index;
@@ -37,9 +47,10 @@ export function LogList(props: {
             key={entry.id}
             color={selected ? "black" : undefined}
             backgroundColor={selected ? "white" : undefined}
+            wrap="truncate-end"
           >
             {selected ? ">" : " "}{" "}
-            {props.showSourceLabel ? `${cell(entry.sourceLabel, 16)} ` : ""}
+            {props.showSourceLabel ? `${cell(entry.sourceLabel, props.sourceWidth)} ` : ""}
             {props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}
           </Text>
         );

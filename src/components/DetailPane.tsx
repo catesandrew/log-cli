@@ -19,15 +19,15 @@ export function DetailPane(props: {
 
   return (
     <Box flexDirection="column">
-      <Text color="cyan">
+      <Text color="cyan" wrap="truncate-end">
         {props.entry.kind === "json" ? "JSON detail" : "Text detail"} · mode:{props.detailMode}
       </Text>
-      <Text dimColor>
+      <Text dimColor wrap="truncate-end">
         {props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} · ` : ""}
         {props.entry.prefix ? `${props.entry.prefix} · ` : ""}
         {props.entry.timeText ?? "no-time"} · {String(props.entry.levelNormalized)}
       </Text>
-      <Text dimColor>
+      <Text dimColor wrap="truncate-end">
         {props.searchTerm
           ? `search:${props.searchTerm} · matches:${props.searchMatches.length}`
           : "search:off"}

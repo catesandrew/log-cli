@@ -41737,6 +41737,7 @@ function DetailPane(props) {
     children: [
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         color: "cyan",
+        wrap: "truncate-end",
         children: [
           props.entry.kind === "json" ? "JSON detail" : "Text detail",
           " \xB7 mode:",
@@ -41745,6 +41746,7 @@ function DetailPane(props) {
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
+        wrap: "truncate-end",
         children: [
           props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} \xB7 ` : "",
           props.entry.prefix ? `${props.entry.prefix} \xB7 ` : "",
@@ -41755,6 +41757,7 @@ function DetailPane(props) {
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
+        wrap: "truncate-end",
         children: props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}` : "search:off"
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
@@ -41913,49 +41916,68 @@ var init_FilterBar = __esm(async () => {
   jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
+// src/lib/layout.ts
+function computePaneWidths(columns) {
+  const gap = columns >= 100 ? 3 : 2;
+  const listWidth = Math.max(40, Math.min(Math.floor(columns * (columns >= 120 ? 0.5 : 0.46)), columns - 28));
+  const detailWidth = Math.max(24, columns - listWidth - gap);
+  return {
+    listWidth,
+    detailWidth,
+    gap
+  };
+}
+function fitInlineParts(parts, maxWidth) {
+  const separator = " \xB7 ";
+  let line = "";
+  for (const part of parts) {
+    const candidate = line ? `${line}${separator}${part}` : part;
+    if (candidate.length <= maxWidth) {
+      line = candidate;
+      continue;
+    }
+    if (!line) {
+      return part.slice(0, Math.max(0, maxWidth - 1)) + (part.length > maxWidth ? "\u2026" : "");
+    }
+    break;
+  }
+  return line;
+}
+
 // src/components/Footer.tsx
 function Footer(props) {
+  const stateLine = fitInlineParts([
+    `focus:${props.focusMode}`,
+    `follow:${props.follow ? "on" : "off"}`,
+    `reverse:${props.reverse ? "on" : "off"}`,
+    `merged:${props.mergedView ? "on" : "off"}`,
+    `query:${props.query ? "on" : "off"}`,
+    `search:${props.search ? "on" : "off"}`,
+    `fps:${props.fps}`
+  ], Math.max(24, props.columns - 2));
+  const keyLineOne = fitInlineParts(["j/k move", "Enter detail", "F filter", "Q query", "/ search", "Space fold"], Math.max(24, props.columns - 2));
+  const keyLineTwo = fitInlineParts(["Tab src", "Right/Ctrl+Y accept", "M merged", "yy/yp/yk yank", "? help", "q quit"], Math.max(24, props.columns - 2));
   return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
-        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
+        children: "-".repeat(Math.max(0, props.columns - 2))
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         children: props.statusLine
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
-        children: [
-          "focus:",
-          props.focusMode,
-          " \xB7 follow:",
-          props.follow ? "on" : "off",
-          " \xB7 reverse:",
-          props.reverse ? "on" : "off"
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
-        dimColor: true,
-        children: [
-          "merged:",
-          props.mergedView ? "on" : "off",
-          " \xB7 query:",
-          props.query ? "on" : "off",
-          " \xB7 search:",
-          props.search ? "on" : "off",
-          " \xB7 fps:",
-          props.fps
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
-        dimColor: true,
-        children: "j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold"
+        children: stateLine
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
-        children: "Tab source \xB7 RightArrow/Ctrl+Y accept hint \xB7 M merged \xB7 yy/yp/yk yank \xB7 ? help \xB7 q quit"
+        children: keyLineOne
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: keyLineTwo
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
@@ -41987,6 +42009,13 @@ var init_FullscreenLayout = __esm(async () => {
 // src/components/Header.tsx
 function Header(props) {
   const source = props.source;
+  const sourceLine = fitInlineParts([
+    (props.mergedView ? "all sources" : source?.spec.label) ?? "no source",
+    `entries=${source?.entries.length ?? 0}`,
+    `json=${source?.jsonCount ?? 0}`,
+    `text=${source?.textCount ?? 0}`,
+    `dropped=${source?.droppedCount ?? 0}`
+  ], Math.max(20, props.columns - 2));
   return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -42003,46 +42032,13 @@ function Header(props) {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
-        justifyContent: "space-between",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-            dimColor: true,
-            children: (props.mergedView ? "all sources" : source?.spec.label) ?? "no source"
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "entries=",
-              source?.entries.length ?? 0
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
-        justifyContent: "space-between",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "json=",
-              source?.jsonCount ?? 0,
-              " \xB7 text=",
-              source?.textCount ?? 0
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "dropped=",
-              source?.droppedCount ?? 0
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
         dimColor: true,
-        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
+        children: sourceLine
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+        dimColor: true,
+        children: "-".repeat(Math.max(0, props.columns - 2))
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
@@ -42116,14 +42112,19 @@ function cell(value, width) {
   return text.padEnd(width, " ");
 }
 function LogList(props) {
+  const headerLabels = props.columns.map((column) => ({
+    ...column,
+    label: column.key === "level" ? "LVL" : column.key === "message" ? "MSG" : column.label
+  }));
   return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
       /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
         dimColor: true,
+        wrap: "truncate-end",
         children: [
-          props.showSourceLabel ? `${cell("SOURCE", 16)} ` : "",
-          props.columns.map((column) => cell(column.label, column.width)).join(" ")
+          props.showSourceLabel ? `${cell("SOURCE", props.sourceWidth)} ` : "",
+          headerLabels.map((column) => cell(column.label, column.width)).join(" ")
         ]
       }, undefined, true, undefined, this),
       props.entries.map((entry, index) => {
@@ -42138,10 +42139,11 @@ function LogList(props) {
         return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
           color: selected ? "black" : undefined,
           backgroundColor: selected ? "white" : undefined,
+          wrap: "truncate-end",
           children: [
             selected ? ">" : " ",
             " ",
-            props.showSourceLabel ? `${cell(entry.sourceLabel, 16)} ` : "",
+            props.showSourceLabel ? `${cell(entry.sourceLabel, props.sourceWidth)} ` : "",
             props.columns.map((column) => cell(fields[column.key], column.width)).join(" ")
           ]
         }, entry.id, true, undefined, this);
@@ -43196,14 +43198,16 @@ function LogScreen() {
   const visibleEntries = import_react25.useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
   const visibleCount = Math.max(8, size.rows - 12);
-  const listWidth = Math.max(46, Math.floor(size.columns * 0.52));
+  const paneWidths = computePaneWidths(size.columns);
+  const listWidth = paneWidths.listWidth;
+  const sourceWidth = mergedView ? 12 : 0;
   const listColumns = import_react25.useMemo(() => {
     const timeWidth = 24;
     const levelWidth = 8;
     const gap = 2;
-    const messageWidth = Math.max(20, listWidth - timeWidth - levelWidth - gap - 4);
+    const messageWidth = Math.max(18, listWidth - timeWidth - levelWidth - gap - 4 - (mergedView ? sourceWidth + 1 : 0));
     return config.columns.map((column) => column.key === "message" ? { ...column, width: messageWidth } : column);
-  }, [config.columns, listWidth]);
+  }, [config.columns, listWidth, mergedView, sourceWidth]);
   const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), Math.max(0, visibleEntries.length - visibleCount)));
   const visibleWindow = visibleEntries.slice(start, start + visibleCount);
   const selectedEntry = visibleEntries[selectedIndex];
@@ -43480,7 +43484,8 @@ function LogScreen() {
       source: activeSource,
       activeIndex: activeSourceIndex,
       totalSources: sources.length,
-      mergedView
+      mergedView,
+      columns: size.columns
     }, undefined, false, undefined, this),
     body: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
       flexDirection: "row",
@@ -43493,14 +43498,15 @@ function LogScreen() {
             selectedIndex,
             startIndex: start,
             columns: listColumns,
-            showSourceLabel: mergedView
+            showSourceLabel: mergedView,
+            sourceWidth
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
-          width: 2
+          width: paneWidths.gap
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
-          flexGrow: 1,
+          width: paneWidths.detailWidth,
           flexDirection: "column",
           children: focusMode === "filter" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(FilterBar, {
             value: filterDraft,
@@ -43557,7 +43563,8 @@ function LogScreen() {
       focusMode,
       query: activeSource?.query ?? "",
       search: detailSearchTerm,
-      mergedView
+      mergedView,
+      columns: size.columns
     }, undefined, false, undefined, this),
     overlay: showHelp ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(HelpModal, {}, undefined, false, undefined, this) : undefined
   }, undefined, false, undefined, this);

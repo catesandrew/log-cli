@@ -15,6 +15,7 @@ import { copyCurrentJsonValue, copyCurrentKey, copyCurrentPath, createDetailSear
 import { buildFilter } from "../lib/filter";
 import { applyEntryBatch } from "../lib/ingestState";
 import { flattenJsonTree } from "../lib/jsonTree";
+import { computePaneWidths } from "../lib/layout";
 import { mergeEntriesByTime } from "../lib/merge";
 import { buildQuery } from "../lib/query";
 import { buildQuerySuggestions } from "../lib/queryAutocomplete";
@@ -110,16 +111,21 @@ export function LogScreen(): React.ReactNode {
   const visibleEntries = useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
   const visibleCount = Math.max(8, size.rows - 12);
-  const listWidth = Math.max(46, Math.floor(size.columns * 0.52));
+  const paneWidths = computePaneWidths(size.columns);
+  const listWidth = paneWidths.listWidth;
+  const sourceWidth = mergedView ? 12 : 0;
   const listColumns = useMemo(() => {
     const timeWidth = 24;
     const levelWidth = 8;
     const gap = 2;
-    const messageWidth = Math.max(20, listWidth - timeWidth - levelWidth - gap - 4);
+    const messageWidth = Math.max(
+      18,
+      listWidth - timeWidth - levelWidth - gap - 4 - (mergedView ? sourceWidth + 1 : 0),
+    );
     return config.columns.map(column =>
       column.key === "message" ? { ...column, width: messageWidth } : column,
     );
-  }, [config.columns, listWidth]);
+  }, [config.columns, listWidth, mergedView, sourceWidth]);
   const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), Math.max(0, visibleEntries.length - visibleCount)));
   const visibleWindow = visibleEntries.slice(start, start + visibleCount);
   const selectedEntry = visibleEntries[selectedIndex];
@@ -452,6 +458,7 @@ export function LogScreen(): React.ReactNode {
           activeIndex={activeSourceIndex}
           totalSources={sources.length}
           mergedView={mergedView}
+          columns={size.columns}
         />
       }
       body={
@@ -463,10 +470,11 @@ export function LogScreen(): React.ReactNode {
               startIndex={start}
               columns={listColumns}
               showSourceLabel={mergedView}
+              sourceWidth={sourceWidth}
             />
           </Box>
-          <Box width={2} />
-          <Box flexGrow={1} flexDirection="column">
+          <Box width={paneWidths.gap} />
+          <Box width={paneWidths.detailWidth} flexDirection="column">
             {focusMode === "filter" ? (
               <FilterBar
                 value={filterDraft}
@@ -548,6 +556,7 @@ export function LogScreen(): React.ReactNode {
           query={activeSource?.query ?? ""}
           search={detailSearchTerm}
           mergedView={mergedView}
+          columns={size.columns}
         />
       }
       overlay={showHelp ? <HelpModal /> : undefined}
