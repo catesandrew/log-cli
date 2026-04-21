@@ -1,4 +1,4 @@
-import type { SourceState } from "../types";
+import type { NormalizedLevel, SourceState } from "../types";
 import { deriveMergedSelectionIndex, mergeEntriesByTime } from "./merge";
 
 export function createMergedSourceState(
@@ -9,6 +9,7 @@ export function createMergedSourceState(
     reverse: boolean;
     filter: string;
     query: string;
+    levelFilter: NormalizedLevel[];
     expandedPaths: string[];
     detailCursor: number;
   },
@@ -21,6 +22,7 @@ export function createMergedSourceState(
     textCount: 0,
     filter: "",
     query: "",
+    levelFilter: [],
     follow: true,
     reverse: false,
     selectedIndex: 0,
@@ -41,6 +43,7 @@ export function createMergedSourceState(
     reverse: mergedState.reverse,
     filter: mergedState.filter,
     query: mergedState.query,
+    levelFilter: mergedState.levelFilter,
     expandedPaths: mergedState.expandedPaths,
     detailCursor: mergedState.detailCursor,
     selectedIndex: deriveMergedSelectionIndex(

@@ -1,7 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import type { AppConfig } from "../types";
+import type { AppConfig, NormalizedLevel } from "../types";
+
+const normalizedLevelSchema = z.enum([
+  "trace",
+  "debug",
+  "info",
+  "warn",
+  "error",
+  "fatal",
+  "unknown",
+]);
 
 const configSchema = z.object({
   maxEntries: z.number().int().positive().default(50000),
@@ -20,6 +30,10 @@ const configSchema = z.object({
       { key: "level", label: "LEVEL", width: 8 },
       { key: "message", label: "MESSAGE", width: 60 },
     ]),
+  mainLineTemplate: z.string().optional(),
+  placeholderFormat: z.string().optional(),
+  contextPath: z.string().optional(),
+  levelMap: z.record(z.string(), normalizedLevelSchema).default({}),
 });
 
 export const DEFAULT_CONFIG: AppConfig = configSchema.parse({});
@@ -30,22 +44,40 @@ function stripJsonComments(text: string): string {
     .replace(/\/\*[\s\S]*?\*\//g, "");
 }
 
-export async function loadConfig(cwd: string): Promise<AppConfig> {
+async function readConfigFile(filePath: string): Promise<AppConfig | null> {
+  try {
+    const text = await fs.readFile(filePath, "utf8");
+    const parsed = JSON.parse(stripJsonComments(text));
+    return configSchema.parse(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export async function loadConfig(
+  cwd: string,
+  explicitPath?: string,
+): Promise<AppConfig> {
   const candidates = [
+    explicitPath,
     path.join(cwd, ".log.jsonc"),
-    path.join(process.env.HOME ?? "", ".log.jsonc"),
-  ];
+    path.join(process.env.HOME ?? "", ".config", "log", "config.jsonc"),
+  ].filter(Boolean) as string[];
 
   for (const candidate of candidates) {
-    if (!candidate) continue;
-    try {
-      const text = await fs.readFile(candidate, "utf8");
-      const parsed = JSON.parse(stripJsonComments(text));
-      return configSchema.parse(parsed);
-    } catch {
-      // ignore and continue
+    const loaded = await readConfigFile(candidate);
+    if (loaded) {
+      return loaded;
     }
   }
 
   return DEFAULT_CONFIG;
+}
+
+export function normalizeMappedLevel(
+  levelMap: Record<string, NormalizedLevel>,
+  raw: string | number | undefined,
+): string | undefined {
+  if (raw === undefined) return undefined;
+  return levelMap[String(raw)];
 }

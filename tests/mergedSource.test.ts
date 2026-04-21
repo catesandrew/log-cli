@@ -12,6 +12,7 @@ function makeSource(id: string, label: string): SourceState {
     textCount: 0,
     filter: "",
     query: "",
+    levelFilter: [],
     follow: true,
     reverse: false,
     selectedIndex: 0,
@@ -51,6 +52,7 @@ describe("createMergedSourceState", () => {
       reverse: false,
       filter: "message:beta",
       query: 'level = "error"',
+      levelFilter: ["error"],
       expandedPaths: ["root", "root.a"],
       detailCursor: 3,
     });
@@ -59,6 +61,7 @@ describe("createMergedSourceState", () => {
     expect(merged.reverse).toBe(false);
     expect(merged.filter).toBe("message:beta");
     expect(merged.query).toBe('level = "error"');
+    expect(merged.levelFilter).toEqual(["error"]);
     expect(merged.expandedPaths).toEqual(["root", "root.a"]);
     expect(merged.detailCursor).toBe(3);
   });

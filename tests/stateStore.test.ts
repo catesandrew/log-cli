@@ -13,6 +13,7 @@ describe("getDefaultAppState", () => {
         batchMs: 50,
         columns: [],
         preserveAnsiText: true,
+        levelMap: {},
       },
       { mergedView: true },
     );
@@ -25,6 +26,7 @@ describe("getDefaultAppState", () => {
     expect(state.mergedSelectedIndex).toBe(0);
     expect(state.mergedFilter).toBe("");
     expect(state.mergedQuery).toBe("");
+    expect(state.mergedLevelFilter).toEqual([]);
     expect(state.mergedExpandedPaths).toEqual(["root"]);
     expect(state.mergedDetailCursor).toBe(0);
   });
@@ -40,12 +42,14 @@ describe("getDefaultAppState", () => {
         batchMs: 50,
         columns: [],
         preserveAnsiText: true,
+        levelMap: {},
       },
       { mergedView: true },
     );
 
     expect(state.sources[0]?.filter).toBe("");
     expect(state.sources[0]?.query).toBe("");
+    expect(state.sources[0]?.levelFilter).toEqual([]);
     expect(state.mergedFilter).toBe("");
     expect(state.mergedQuery).toBe("");
   });
@@ -61,6 +65,7 @@ describe("getDefaultAppState", () => {
         batchMs: 50,
         columns: [],
         preserveAnsiText: true,
+        levelMap: {},
       },
       { mergedView: true, defaultFilter: "message:error", defaultQuery: 'level = "error"' },
     );
@@ -85,6 +90,7 @@ describe("getDefaultAppState", () => {
         batchMs: 50,
         columns: [],
         preserveAnsiText: true,
+        levelMap: {},
       },
       { mergedView: true, follow: false, reverse: true },
     );
@@ -115,6 +121,7 @@ describe("getDefaultAppState", () => {
         batchMs: 50,
         columns: [],
         preserveAnsiText: true,
+        levelMap: {},
       },
       { mergedView: true },
     );

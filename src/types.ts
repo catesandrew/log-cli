@@ -49,6 +49,7 @@ export type SourceState = {
   textCount: number;
   filter: string;
   query: string;
+  levelFilter: NormalizedLevel[];
   follow: boolean;
   reverse: boolean;
   selectedIndex: number;
@@ -67,6 +68,10 @@ export type AppConfig = {
   batchMs: number;
   columns: ColumnConfig[];
   preserveAnsiText: boolean;
+  mainLineTemplate?: string;
+  placeholderFormat?: string;
+  contextPath?: string;
+  levelMap: Record<string, NormalizedLevel>;
 };
 
 export type AppState = {
@@ -79,6 +84,7 @@ export type AppState = {
   mergedReverse: boolean;
   mergedFilter: string;
   mergedQuery: string;
+  mergedLevelFilter: NormalizedLevel[];
   mergedExpandedPaths: string[];
   mergedDetailCursor: number;
   startupStatus: string;

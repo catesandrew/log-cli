@@ -18,6 +18,8 @@ export function Header(props: {
   mergedReverseActive?: boolean;
   mergedFollowActive?: boolean;
   visibleEntries?: number;
+  activeFilterText?: string;
+  levelFilterText?: string;
 }): React.ReactNode {
   const source = props.source;
   const countSummary = formatEntryCountSummary({
@@ -36,6 +38,16 @@ export function Header(props: {
       })
     : source?.spec.label ?? "no source";
   const countLine = fitInlineParts([countSummary], Math.max(20, props.columns - 2));
+  const filterLine =
+    props.activeFilterText || props.levelFilterText
+      ? fitInlineParts(
+          [
+            ...(props.activeFilterText ? [`filter:${props.activeFilterText}`] : []),
+            ...(props.levelFilterText ? [`levels:${props.levelFilterText}`] : []),
+          ],
+          Math.max(20, props.columns - 2),
+        )
+      : undefined;
   return (
     <Box flexDirection="column">
       <Box justifyContent="space-between">
@@ -50,6 +62,7 @@ export function Header(props: {
       </Box>
       <Text dimColor>{summaryLine}</Text>
       <Text dimColor>{countLine}</Text>
+      {filterLine ? <Text dimColor>{filterLine}</Text> : null}
       <Text dimColor>{"-".repeat(Math.max(0, props.columns - 2))}</Text>
     </Box>
   );

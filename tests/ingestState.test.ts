@@ -12,6 +12,7 @@ function sourceState(): SourceState {
     textCount: 0,
     filter: "",
     query: "",
+    levelFilter: [],
     follow: true,
     reverse: false,
     selectedIndex: 0,

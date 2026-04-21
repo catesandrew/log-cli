@@ -11,6 +11,7 @@ import { buildFilteredSummary, buildSummary } from "./lib/summary";
 import type { LogEntry } from "./types";
 
 type CliOptions = {
+  config?: string;
   url?: string;
   cmd?: string;
   max?: string;
@@ -25,7 +26,7 @@ type CliOptions = {
 };
 
 async function runSummary(options: CliOptions, fileArgs: string[]): Promise<void> {
-  const config = await loadConfig(process.cwd());
+  const config = await loadConfig(process.cwd(), options.config);
   const follow = options.noFollow === false ? false : true;
   const sources = resolveSources({ files: fileArgs, url: options.url, cmd: options.cmd });
   const error = validateSources(sources);
@@ -39,21 +40,51 @@ async function runSummary(options: CliOptions, fileArgs: string[]): Promise<void
   }
 
   await new Promise<void>(resolve => {
+    const batchMs = Number(options.batchMs ?? config.batchMs);
+    const quietMs = Math.max(150, batchMs * 3);
+    const maxSummaryWaitMs = 5000;
+    const completedSources = new Set<string>();
+    let settled = false;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let maxTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (idleTimer) clearTimeout(idleTimer);
+      if (maxTimer) clearTimeout(maxTimer);
+      cleanup();
+      resolve();
+    };
+
+    const scheduleIdleFinish = () => {
+      if (settled) return;
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        if (completedSources.size >= sources.length) {
+          finish();
+        }
+      }, quietMs);
+    };
+
     const cleanup = startSourceManager(sources, {
       ...config,
       maxEntries: Number(options.max ?? config.maxEntries),
-      batchMs: Number(options.batchMs ?? config.batchMs),
+      batchMs,
     }, {
       onBatch(sourceId, entries) {
-        entriesBySource.set(sourceId, entries);
+        const current = entriesBySource.get(sourceId) ?? [];
+        entriesBySource.set(sourceId, [...current, ...entries]);
+        scheduleIdleFinish();
       },
       onStatus() {},
+      onSourceDone(sourceId) {
+        completedSources.add(sourceId);
+        scheduleIdleFinish();
+      },
     });
 
-    setTimeout(() => {
-      cleanup();
-      resolve();
-    }, 300);
+    maxTimer = setTimeout(finish, maxSummaryWaitMs);
   });
 
   const summary = options.filter || options.query
@@ -92,6 +123,7 @@ export async function main(): Promise<void> {
   const program = new Command("log");
   program
     .argument("[files...]", "Log files to open")
+    .option("--config <path>", "Load config from an explicit JSONC file")
     .option("--url <url>", "Read lines from a streaming HTTP GET response")
     .option("--cmd <command>", "Spawn a command and read stdout/stderr as lines")
     .option("--max <n>", "Maximum entries per source", "50000")
@@ -122,7 +154,7 @@ export async function main(): Promise<void> {
     return;
   }
 
-  const config = await loadConfig(process.cwd());
+  const config = await loadConfig(process.cwd(), options.config);
   const sources = resolveSources({ files: fileArgs, url: options.url, cmd: options.cmd });
   const error = validateSources(sources);
   if (error) {

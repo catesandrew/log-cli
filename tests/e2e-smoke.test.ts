@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { chmodSync, unlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { join } from "node:path";
 
@@ -24,6 +25,32 @@ function runDirect(cmd: string, args: string[]): string {
   });
   expect(result.status).toBe(0);
   return `${result.stdout}${result.stderr}`;
+}
+
+async function runAsync(cmd: string, args: string[]): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, {
+      cwd: root,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout?.on("data", chunk => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on("data", chunk => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", code => {
+      if (code !== 0) {
+        reject(new Error(`command exited with code ${code}: ${stderr || stdout}`));
+        return;
+      }
+      resolve(`${stdout}${stderr}`);
+    });
+  });
 }
 
 describe("log e2e smoke", () => {
@@ -134,6 +161,18 @@ describe("log e2e smoke", () => {
     expect(output).toContain("json=");
   });
 
+  test("ignores piped stdin when explicit file sources are provided", () => {
+    const output = run(
+      ["run", "src/cli.ts", "examples/mixed.log", "--merge", "--summary-json"],
+      '{"level":"warn","message":"stdin-ignored"}\n',
+    );
+    expect(output).toContain('"label": "mixed.log"');
+    expect(output).toContain('"entries": 5');
+    expect(output).toContain('"mergedRequested": true');
+    expect(output).toContain('"mergedActive": false');
+    expect(output).not.toContain('"label": "stdin"');
+  });
+
   test("summarizes command output", () => {
     const output = run([
       "dist/cli.js",
@@ -144,6 +183,22 @@ describe("log e2e smoke", () => {
     expect(output).toContain("\"entries\": 2");
     expect(output).toContain("\"json\": 1");
     expect(output).toContain("\"text\": 1");
+  });
+
+  test("summarizes a failed command quickly and preserves the stderr line as text", () => {
+    const startedAt = Date.now();
+    const output = run([
+      "dist/cli.js",
+      "--cmd",
+      "nonexistent-command-xyz",
+      "--summary-json",
+    ]);
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(output).toContain("\"entries\": 1");
+    expect(output).toContain("\"json\": 0");
+    expect(output).toContain("\"text\": 1");
+    expect(elapsedMs).toBeLessThan(1500);
   });
 
   test("summarizes a streaming URL", async () => {
@@ -160,7 +215,7 @@ describe("log e2e smoke", () => {
     }
 
     try {
-      const output = run([
+      const output = await runAsync("bun", [
         "dist/cli.js",
         "--url",
         `http://127.0.0.1:${address.port}`,
@@ -176,6 +231,56 @@ describe("log e2e smoke", () => {
     }
   });
 
+  test("summarizes a delayed multi-batch URL stream before closing", async () => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.write('{"level":"info","message":"url-1"}\n');
+      res.write("plain-url-1\n");
+      setTimeout(() => {
+        res.write('{"level":"warn","message":"url-2"}\n');
+        res.end("plain-url-2\n");
+      }, 120);
+    });
+
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", () => resolve()));
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      throw new Error("failed to start test server");
+    }
+
+    try {
+      const output = await runAsync("bun", [
+        "dist/cli.js",
+        "--url",
+        `http://127.0.0.1:${address.port}`,
+        "--summary-json",
+      ]);
+      expect(output).toContain("\"entries\": 4");
+      expect(output).toContain("\"json\": 2");
+      expect(output).toContain("\"text\": 2");
+    } finally {
+      await new Promise<void>((resolve, reject) =>
+        server.close(error => (error ? reject(error) : resolve())),
+      );
+    }
+  });
+
+  test("summarizes a failed URL request without waiting for the fallback timeout", async () => {
+    const startedAt = Date.now();
+    const output = await runAsync("bun", [
+      "dist/cli.js",
+      "--url",
+      "http://127.0.0.1:9",
+      "--summary-json",
+    ]);
+    const elapsedMs = Date.now() - startedAt;
+
+    expect(output).toContain("\"entries\": 0");
+    expect(output).toContain("\"json\": 0");
+    expect(output).toContain("\"text\": 0");
+    expect(elapsedMs).toBeLessThan(1500);
+  });
+
   test("handles a high-volume synthetic command stream", () => {
     const output = run([
       "dist/cli.js",
@@ -185,6 +290,42 @@ describe("log e2e smoke", () => {
     ]);
     expect(output).toContain("\"entries\": 2000");
     expect(output).toContain("\"json\": 2000");
+  });
+
+  test("summarizes a delayed multi-batch command stream without replaying prior batches", () => {
+    const scriptPath = join(
+      root,
+      "tests",
+      `.tmp-delayed-command-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.sh`,
+    );
+    writeFileSync(
+      scriptPath,
+      [
+        "#!/usr/bin/env bash",
+        "for i in 1 2 3 4; do",
+        "  printf '{\"level\":\"info\",\"message\":\"cmd-%s\"}\\n' \"$i\"",
+        "  printf 'plain-%s\\n' \"$i\"",
+        "  sleep 0.06",
+        "done",
+        "",
+      ].join("\n"),
+      "utf8",
+    );
+    chmodSync(scriptPath, 0o755);
+
+    try {
+      const output = run([
+        "dist/cli.js",
+        "--cmd",
+        scriptPath,
+        "--summary-json",
+      ]);
+      expect(output).toContain("\"entries\": 8");
+      expect(output).toContain("\"json\": 4");
+      expect(output).toContain("\"text\": 4");
+    } finally {
+      unlinkSync(scriptPath);
+    }
   });
 
   test("wrapper binary supports merged startup filters and queries", () => {

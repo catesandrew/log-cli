@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "../ink";
+import { parseAnsiText } from "../lib/ansi";
 import { formatMergedBoundaryLabel, getMergedEntryMeta } from "../lib/merge";
 import type { ColumnConfig, LogEntry } from "../types";
 
@@ -18,6 +19,7 @@ export function LogList(props: {
   columns: ColumnConfig[];
   showSourceLabel: boolean;
   sourceWidth: number;
+  formatMessage?: (entry: LogEntry) => string;
 }): React.ReactNode {
   const headerLabels = props.columns.map(column => ({
     ...column,
@@ -42,9 +44,15 @@ export function LogList(props: {
         const fields: Record<string, string | undefined> = {
           time: entry.timeText,
           level: String(entry.levelNormalized),
-          message: entry.message,
+          message: props.formatMessage?.(entry) ?? entry.message,
           prefix: entry.prefix,
         };
+        const lineText = `${selected ? ">" : " "} ${
+          props.showSourceLabel
+            ? `${mergedMeta?.sourceChanged ? ">" : "·"}${cell(mergedMeta?.sourceMarker, props.sourceWidth - 1)} `
+            : ""
+        }${props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}`;
+        const ansiSegments = parseAnsiText(lineText);
         return (
           <Box key={entry.id} flexDirection="column">
             {props.showSourceLabel && mergedMeta?.sourceChanged ? (
@@ -52,17 +60,27 @@ export function LogList(props: {
                 {formatMergedBoundaryLabel(entry)}
               </Text>
             ) : null}
-            <Text
-              color={selected ? "black" : undefined}
-              backgroundColor={selected ? "white" : undefined}
-              wrap="truncate-end"
-            >
-              {selected ? ">" : " "}{" "}
-              {props.showSourceLabel
-                ? `${mergedMeta?.sourceChanged ? ">" : "·"}${cell(mergedMeta?.sourceMarker, props.sourceWidth - 1)} `
-                : ""}
-              {props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}
-            </Text>
+            {selected || ansiSegments.length === 0 ? (
+              <Text
+                color={selected ? "black" : undefined}
+                backgroundColor={selected ? "white" : undefined}
+                wrap="truncate-end"
+              >
+                {selected ? ansiSegments.map(segment => segment.text).join("") || lineText : lineText}
+              </Text>
+            ) : (
+              <Text wrap="truncate-end">
+                {ansiSegments.map((segment, segmentIndex) => (
+                  <Text
+                    key={`${entry.id}-${segmentIndex}`}
+                    color={segment.color}
+                    bold={segment.bold}
+                  >
+                    {segment.text}
+                  </Text>
+                ))}
+              </Text>
+            )}
           </Box>
         );
       })}

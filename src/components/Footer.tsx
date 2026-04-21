@@ -46,6 +46,7 @@ export function Footer(props: {
       "Tab src",
       "Right/Ctrl+Y accept",
       ...(props.mergeIgnored ? ["M merge unavailable"] : ["M merged"]),
+      "1-6 levels",
       "yy/yp/yk yank",
       "? help",
       "q quit",

@@ -12,24 +12,40 @@ import { QueryBar } from "../components/QueryBar";
 import { SearchBar } from "../components/SearchBar";
 import { useTerminalSize } from "../hooks/useTerminalSize";
 import { copyCurrentJsonValue, copyCurrentKey, copyCurrentPath, createDetailSearch } from "../lib/detailActions";
-import { buildFilter } from "../lib/filter";
+import { buildFilter, isLegacyFilterExpression, parseFilterExpression } from "../lib/filter";
 import { applyEntryBatch } from "../lib/ingestState";
 import { flattenJsonTree } from "../lib/jsonTree";
 import { computePaneWidths } from "../lib/layout";
 import { sliceListWindow } from "../lib/listWindow";
+import { renderMainLine } from "../lib/mainLineTemplate";
 import { createMergedSourceState } from "../lib/mergedSource";
 import { buildQuery } from "../lib/query";
 import { applySuggestionToQuery, buildQuerySuggestions } from "../lib/queryAutocomplete";
 import { startSourceManager } from "../lib/sourceManager";
 import { createTextSearch } from "../lib/textSearch";
 import { useAppState, useAppStateStore, useSetAppState } from "../state/AppState";
-import type { AppState, JsonTreeRow, LogEntry, SourceState } from "../types";
+import type { AppState, JsonTreeRow, LogEntry, NormalizedLevel, SourceState } from "../types";
+
+const LEVEL_KEY_MAP: Record<string, NormalizedLevel> = {
+  "1": "trace",
+  "2": "debug",
+  "3": "info",
+  "4": "warn",
+  "5": "error",
+  "6": "fatal",
+};
+
+function matchesLevelFilter(entry: LogEntry, levels: NormalizedLevel[]): boolean {
+  return levels.length === 0 || levels.includes(entry.levelNormalized as NormalizedLevel);
+}
 
 function getVisibleEntries(source: SourceState | undefined): LogEntry[] {
   if (!source) return [];
   const filter = buildFilter(source.filter);
   const query = buildQuery(source.query);
-  const filtered = source.entries.filter(entry => filter(entry) && query(entry));
+  const filtered = source.entries.filter(
+    entry => filter(entry) && query(entry) && matchesLevelFilter(entry, source.levelFilter),
+  );
   return source.reverse ? [...filtered].reverse() : filtered;
 }
 
@@ -69,6 +85,7 @@ export function LogScreen(): React.ReactNode {
   const mergedReverse = useAppState(state => state.mergedReverse);
   const mergedFilter = useAppState(state => state.mergedFilter);
   const mergedQuery = useAppState(state => state.mergedQuery);
+  const mergedLevelFilter = useAppState(state => state.mergedLevelFilter);
   const mergedExpandedPaths = useAppState(state => state.mergedExpandedPaths);
   const mergedDetailCursor = useAppState(state => state.mergedDetailCursor);
   const focusMode = useAppState(state => state.focusMode);
@@ -96,6 +113,7 @@ export function LogScreen(): React.ReactNode {
             reverse: mergedReverse,
             filter: mergedFilter,
             query: mergedQuery,
+            levelFilter: mergedLevelFilter,
             expandedPaths: mergedExpandedPaths,
             detailCursor: mergedDetailCursor,
           })
@@ -105,6 +123,7 @@ export function LogScreen(): React.ReactNode {
       mergedDetailCursor,
       mergedExpandedPaths,
       mergedFilter,
+      mergedLevelFilter,
       mergedFollow,
       mergedQuery,
       mergedReverse,
@@ -158,6 +177,8 @@ export function LogScreen(): React.ReactNode {
     selectedEntry?.kind === "json" && detailMode === "tree"
       ? detailSearch.matches
       : textSearch.matches;
+  const activeFilterText = mergedView ? mergedFilter : activeSource?.filter ?? "";
+  const activeLevelFilter = mergedView ? mergedLevelFilter : activeSource?.levelFilter ?? [];
   const detailModeHint =
     !selectedEntry
       ? "m tree/raw"
@@ -173,6 +194,10 @@ export function LogScreen(): React.ReactNode {
   const selectedSuggestionIndex = Math.min(
     querySuggestionIndex,
     Math.max(0, querySuggestions.length - 1),
+  );
+  const formatMessage = useMemo(
+    () => (entry: LogEntry) => renderMainLine(entry, config),
+    [config],
   );
   const renderCountRef = useRef(0);
   const lastPerfRef = useRef({ count: 0, at: Date.now() });
@@ -286,6 +311,36 @@ export function LogScreen(): React.ReactNode {
 
     if (showHelp && (key.escape || input === "?")) {
       setState(prev => ({ ...prev, showHelp: false }));
+      return;
+    }
+
+    if (input in LEVEL_KEY_MAP) {
+      const level = LEVEL_KEY_MAP[input]!;
+      setState(prev => {
+        if (prev.mergedView) {
+          const next = prev.mergedLevelFilter.includes(level)
+            ? prev.mergedLevelFilter.filter(item => item !== level)
+            : [...prev.mergedLevelFilter, level];
+          return {
+            ...prev,
+            mergedLevelFilter: next,
+            mergedSelectedIndex: 0,
+            mergedFollow: false,
+            statusLine: next.length > 0 ? `Level filter: ${next.join(", ")}` : "Level filter cleared",
+          };
+        }
+        return updateCurrentSource(prev, source => {
+          const next = source.levelFilter.includes(level)
+            ? source.levelFilter.filter(item => item !== level)
+            : [...source.levelFilter, level];
+          return {
+            ...source,
+            levelFilter: next,
+            selectedIndex: 0,
+            follow: false,
+          };
+        });
+      });
       return;
     }
 
@@ -595,6 +650,8 @@ export function LogScreen(): React.ReactNode {
           mergedReverseActive={mergedReverse}
           mergedFollowActive={mergedFollow}
           visibleEntries={visibleEntries.length}
+          activeFilterText={activeFilterText}
+          levelFilterText={activeLevelFilter.join(",")}
         />
       }
       body={
@@ -607,6 +664,7 @@ export function LogScreen(): React.ReactNode {
               columns={listColumns}
               showSourceLabel={mergedView}
               sourceWidth={sourceWidth}
+              formatMessage={formatMessage}
             />
           </Box>
           <Box width={paneWidths.gap} />
@@ -617,6 +675,18 @@ export function LogScreen(): React.ReactNode {
                 onChange={value => setState(prev => ({ ...prev, filterDraft: value }))}
                 onSubmit={value =>
                   setState(prev => {
+                    try {
+                      if (value.trim() && !isLegacyFilterExpression(value)) {
+                        parseFilterExpression(value);
+                      }
+                    } catch (error) {
+                      return {
+                        ...prev,
+                        focusMode: "list",
+                        filterDraft: "",
+                        statusLine: `Filter error: ${error instanceof Error ? error.message : String(error)}`,
+                      };
+                    }
                     if (prev.mergedView) {
                       return {
                         ...prev,

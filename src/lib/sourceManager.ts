@@ -9,6 +9,7 @@ import type { SourceHandle } from "./source/types";
 type Events = {
   onBatch: (sourceId: string, entries: LogEntry[], droppedCount: number) => void;
   onStatus: (message: string) => void;
+  onSourceDone?: (sourceId: string) => void;
 };
 
 export function createSourceManagerHarness(
@@ -34,7 +35,7 @@ export function createSourceManagerHarness(
       const buffer = buffers.get(sourceId)!;
       buffer.push(entries);
       pending.set(sourceId, []);
-      events.onBatch(sourceId, buffer.toArray(), buffer.droppedCount);
+      events.onBatch(sourceId, entries, buffer.droppedCount);
     }
   };
 
@@ -49,19 +50,20 @@ export function createSourceManagerHarness(
       onEntries,
       onStatus: events.onStatus,
       onSourceReady: () => {},
+      onSourceDone: (sourceId: string) => events.onSourceDone?.(sourceId),
     };
     switch (source.kind) {
       case "file":
-        handles.push(startFileSource(source, commonEvents));
+        handles.push(startFileSource(source, commonEvents, config));
         break;
       case "stdin":
-        handles.push(startStdinSource(source, commonEvents));
+        handles.push(startStdinSource(source, commonEvents, config));
         break;
       case "url":
-        handles.push(startUrlSource(source, commonEvents));
+        handles.push(startUrlSource(source, commonEvents, config));
         break;
       case "cmd":
-        handles.push(startCmdSource(source, commonEvents));
+        handles.push(startCmdSource(source, commonEvents, config));
         break;
     }
   }

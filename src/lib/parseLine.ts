@@ -1,4 +1,6 @@
-import type { LogEntry, NormalizedLevel } from "../types";
+import type { AppConfig, LogEntry, NormalizedLevel } from "../types";
+import { normalizeMappedLevel } from "./config";
+import { getPathValue } from "./pathValue";
 import { createId } from "../utils/id";
 
 type ParseContext = {
@@ -6,6 +8,8 @@ type ParseContext = {
   sourceLabel?: string;
   lineNumber: number;
 };
+
+type ParseLineOptions = Pick<AppConfig, "levelMap" | "placeholderFormat" | "contextPath">;
 
 const TIME_FIELDS = ["time", "timestamp", "ts"];
 const LEVEL_FIELDS = ["level", "severity"];
@@ -96,8 +100,8 @@ function extractFromRecord(record: Record<string, unknown>) {
 
   for (const field of LEVEL_FIELDS) {
     const value = record[field];
-    if (typeof value === "string") {
-      levelRaw = value;
+    if (typeof value === "string" || typeof value === "number") {
+      levelRaw = String(value);
       break;
     }
   }
@@ -134,6 +138,40 @@ function extractFromRecord(record: Record<string, unknown>) {
   };
 }
 
+function substituteMessagePlaceholders(
+  message: string,
+  record: Record<string, unknown>,
+  options?: ParseLineOptions,
+): string {
+  if (!options?.placeholderFormat || !options.contextPath) {
+    return message;
+  }
+
+  const [prefix, suffix] = options.placeholderFormat.split("key");
+  if (prefix === undefined || suffix === undefined) {
+    return message;
+  }
+
+  const context = getPathValue(record, options.contextPath);
+  if (!context || typeof context !== "object" || Array.isArray(context)) {
+    return message;
+  }
+
+  const pattern = new RegExp(
+    `${escapeRegExp(prefix)}(.+?)${escapeRegExp(suffix)}`,
+    "g",
+  );
+
+  return message.replace(pattern, (full, key: string) => {
+    const value = (context as Record<string, unknown>)[key];
+    return value === undefined ? full : String(value);
+  });
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function parseMaybePrefixedJson(line: string): { prefix?: string; jsonText?: string } {
   const separator = " | ";
   const index = line.indexOf(separator);
@@ -150,7 +188,11 @@ function parseMaybePrefixedJson(line: string): { prefix?: string; jsonText?: str
   return { jsonText: line };
 }
 
-export function parseLine(line: string, context: ParseContext): LogEntry {
+export function parseLine(
+  line: string,
+  context: ParseContext,
+  options?: ParseLineOptions,
+): LogEntry {
   const { prefix, jsonText } = parseMaybePrefixedJson(line);
   let jsonValue: unknown;
 
@@ -169,11 +211,18 @@ export function parseLine(line: string, context: ParseContext): LogEntry {
         : { value: jsonValue };
 
     const extracted = extractFromRecord(record);
+    const mappedLevel =
+      normalizeMappedLevel(options?.levelMap ?? {}, extracted.levelRaw) ?? extracted.levelRaw;
+    const substitutedMessage = substituteMessagePlaceholders(
+      extracted.message,
+      record,
+      options,
+    );
     const searchPieces = [
       prefix,
       extracted.timeText,
-      extracted.levelRaw,
-      extracted.message,
+      mappedLevel,
+      substitutedMessage,
       previewFromJson(jsonValue),
     ].filter(Boolean);
 
@@ -186,14 +235,16 @@ export function parseLine(line: string, context: ParseContext): LogEntry {
       prefix,
       kind: "json",
       jsonValue,
-      message: extracted.message,
-      preview: extracted.message,
+      message: substitutedMessage,
+      preview: substitutedMessage,
       text: line,
       timeText: extracted.timeText,
       timestampMs: extracted.timestampMs,
-      levelRaw: extracted.levelRaw,
-      levelNormalized: normalizeLevel(extracted.levelRaw),
-      fieldIndex: prefix ? { ...extracted.fieldIndex, prefix } : extracted.fieldIndex,
+      levelRaw: mappedLevel,
+      levelNormalized: normalizeLevel(mappedLevel),
+      fieldIndex: prefix
+        ? { ...extracted.fieldIndex, message: substitutedMessage, level: mappedLevel ?? "", prefix }
+        : { ...extracted.fieldIndex, message: substitutedMessage, level: mappedLevel ?? "" },
       searchText: searchPieces.join(" ").toLowerCase(),
     };
   }

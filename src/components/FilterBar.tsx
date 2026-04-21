@@ -10,7 +10,9 @@ export function FilterBar(props: {
   return (
     <Box flexDirection="column">
       <Text color="yellow">Filter mode</Text>
-      <Text dimColor>Use substring or field:value tokens. Enter applies, Esc cancels.</Text>
+      <Text dimColor>
+        Examples: level = "error", request.method = "GET" and not exists(.user.id), span.[].name like "db*"
+      </Text>
       <Box>
         <Text>filter&gt; </Text>
         <TextInput value={props.value} onChange={props.onChange} onSubmit={props.onSubmit} />

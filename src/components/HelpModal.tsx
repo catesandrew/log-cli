@@ -11,6 +11,7 @@ export function HelpModal(): React.ReactNode {
       <Text>Enter switch list/detail focus</Text>
       <Text>Space folds JSON nodes in tree detail mode</Text>
       <Text>F opens filter mode</Text>
+      <Text>1-6 toggle trace/debug/info/warn/error/fatal filters</Text>
       <Text>R reverses order</Text>
       <Text>Tab / Shift+Tab change tab</Text>
       <Text>m toggles tree/raw detail mode for JSON entries</Text>

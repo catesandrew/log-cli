@@ -4,6 +4,7 @@ type OptionSpec = {
 };
 
 const OPTION_SPECS: OptionSpec[] = [
+  { name: "--config", takesValue: true },
   { name: "--url", takesValue: true },
   { name: "--cmd", takesValue: true },
   { name: "--max", takesValue: true },
