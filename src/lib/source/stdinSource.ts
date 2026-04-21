@@ -10,7 +10,7 @@ export function startStdinSource(source: SourceSpec, events: SourceEvents): Sour
   void (async () => {
     for await (const line of rl) {
       lineNumber += 1;
-      events.onEntries(source.id, [parseLine(line, { sourceId: source.id, lineNumber })]);
+      events.onEntries(source.id, [parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
     }
     events.onStatus("stdin stream completed");
   })();

@@ -9,8 +9,14 @@ export function TextDetail(props: { text: string }): React.ReactNode {
   }
 
   return (
+    <BoxText segments={segments} />
+  );
+}
+
+function BoxText(props: { segments: ReturnType<typeof parseAnsiText> }): React.ReactNode {
+  return (
     <Text wrap="wrap">
-      {segments.map((segment, index) => (
+      {props.segments.map((segment, index) => (
         <Text key={`${segment.text}-${index}`} color={segment.color} bold={segment.bold}>
           {segment.text}
         </Text>

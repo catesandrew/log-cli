@@ -11,12 +11,12 @@ export function startFileSource(source: SourceSpec, events: SourceEvents): Sourc
 
   void (async () => {
     const batch: LogEntry[] = [];
-    for await (const line of rl) {
-      lineNumber += 1;
-      batch.push(parseLine(line, { sourceId: source.id, lineNumber }));
-      if (batch.length >= 200) {
-        events.onEntries(source.id, batch.splice(0, batch.length));
-      }
+      for await (const line of rl) {
+        lineNumber += 1;
+        batch.push(parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }));
+        if (batch.length >= 200) {
+          events.onEntries(source.id, batch.splice(0, batch.length));
+        }
     }
     if (batch.length > 0) {
       events.onEntries(source.id, batch);

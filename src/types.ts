@@ -15,6 +15,7 @@ export type SourceKind = "file" | "stdin" | "url" | "cmd";
 export type LogEntry = {
   id: string;
   sourceId: string;
+  sourceLabel?: string;
   lineNumber: number;
   raw: string;
   prefix?: string;

@@ -143,6 +143,10 @@ export function LogScreen(): React.ReactNode {
     () => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft),
     [activeSource?.entries, queryDraft],
   );
+  const selectedSuggestionIndex = Math.min(
+    querySuggestionIndex,
+    Math.max(0, querySuggestions.length - 1),
+  );
   const renderCountRef = useRef(0);
   const lastPerfRef = useRef({ count: 0, at: Date.now() });
   const pendingYankRef = useRef(false);
@@ -445,7 +449,13 @@ export function LogScreen(): React.ReactNode {
       body={
         <Box flexDirection="row">
           <Box width={listWidth} flexDirection="column">
-            <LogList entries={visibleWindow} selectedIndex={selectedIndex} startIndex={start} columns={listColumns} />
+            <LogList
+              entries={visibleWindow}
+              selectedIndex={selectedIndex}
+              startIndex={start}
+              columns={listColumns}
+              showSourceLabel={mergedView}
+            />
           </Box>
           <Box width={2} />
           <Box flexGrow={1} flexDirection="column">
@@ -468,7 +478,7 @@ export function LogScreen(): React.ReactNode {
               <QueryBar
                 value={queryDraft}
                 suggestions={querySuggestions}
-                selectedSuggestionIndex={Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1))}
+                selectedSuggestionIndex={selectedSuggestionIndex}
                 onChange={value => setState(prev => ({ ...prev, queryDraft: value }))}
                 onSubmit={value =>
                   setState(prev =>
@@ -514,6 +524,7 @@ export function LogScreen(): React.ReactNode {
                 jsonCursor={activeSource?.detailCursor ?? 0}
                 searchTerm={detailSearchTerm}
                 searchMatches={detailMatches}
+                mergedView={mergedView}
               />
             )}
           </Box>

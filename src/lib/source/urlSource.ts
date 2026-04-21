@@ -26,7 +26,7 @@ export function startUrlSource(source: SourceSpec, events: SourceEvents): Source
       if (lines.length > 0) {
         const entries = lines.map(line => {
           lineNumber += 1;
-          return parseLine(line, { sourceId: source.id, lineNumber });
+          return parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber });
         });
         events.onEntries(source.id, entries);
       }
@@ -34,7 +34,7 @@ export function startUrlSource(source: SourceSpec, events: SourceEvents): Source
 
     if (rest.length > 0) {
       lineNumber += 1;
-      events.onEntries(source.id, [parseLine(rest, { sourceId: source.id, lineNumber })]);
+      events.onEntries(source.id, [parseLine(rest, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
     }
 
     events.onStatus(`URL source ${source.label} completed`);

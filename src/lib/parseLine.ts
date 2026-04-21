@@ -3,6 +3,7 @@ import { createId } from "../utils/id";
 
 type ParseContext = {
   sourceId: string;
+  sourceLabel?: string;
   lineNumber: number;
 };
 
@@ -179,6 +180,7 @@ export function parseLine(line: string, context: ParseContext): LogEntry {
     return {
       id: createId("entry"),
       sourceId: context.sourceId,
+      sourceLabel: context.sourceLabel,
       lineNumber: context.lineNumber,
       raw: line,
       prefix,
@@ -200,6 +202,7 @@ export function parseLine(line: string, context: ParseContext): LogEntry {
   return {
     id: createId("entry"),
     sourceId: context.sourceId,
+    sourceLabel: context.sourceLabel,
     lineNumber: context.lineNumber,
     raw: line,
     prefix,

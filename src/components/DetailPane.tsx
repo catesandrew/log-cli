@@ -11,6 +11,7 @@ export function DetailPane(props: {
   jsonCursor: number;
   searchTerm: string;
   searchMatches: number[];
+  mergedView: boolean;
 }): React.ReactNode {
   if (!props.entry) {
     return <Text dimColor>No entry selected</Text>;
@@ -22,6 +23,7 @@ export function DetailPane(props: {
         {props.entry.kind === "json" ? "JSON detail" : "Text detail"} · mode:{props.detailMode}
       </Text>
       <Text dimColor>
+        {props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} · ` : ""}
         {props.entry.prefix ? `${props.entry.prefix} · ` : ""}
         {props.entry.timeText ?? "no-time"} · {String(props.entry.levelNormalized)}
       </Text>

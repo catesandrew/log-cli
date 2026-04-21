@@ -15,10 +15,12 @@ export function LogList(props: {
   selectedIndex: number;
   startIndex: number;
   columns: ColumnConfig[];
+  showSourceLabel: boolean;
 }): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text dimColor>
+        {props.showSourceLabel ? `${cell("SOURCE", 16)} ` : ""}
         {props.columns.map(column => cell(column.label, column.width)).join(" ")}
       </Text>
       {props.entries.map((entry, index) => {
@@ -37,6 +39,7 @@ export function LogList(props: {
             backgroundColor={selected ? "white" : undefined}
           >
             {selected ? ">" : " "}{" "}
+            {props.showSourceLabel ? `${cell(entry.sourceLabel, 16)} ` : ""}
             {props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}
           </Text>
         );

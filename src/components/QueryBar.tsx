@@ -10,6 +10,7 @@ export function QueryBar(props: {
   onSubmit: (value: string) => void;
 }): React.ReactNode {
   const visibleSuggestions = props.suggestions.slice(0, 5);
+  const activeSuggestion = visibleSuggestions[props.selectedSuggestionIndex] ?? "";
   return (
     <Box flexDirection="column">
       <Text color="cyan">Query mode</Text>
@@ -20,7 +21,9 @@ export function QueryBar(props: {
         <Text>query&gt; </Text>
         <TextInput value={props.value} onChange={props.onChange} onSubmit={props.onSubmit} />
       </Box>
-      <Text dimColor>Tab/Shift+Tab cycles suggestions. Enter applies current query.</Text>
+      <Text dimColor>
+        Tab/Shift+Tab cycles suggestions. Enter applies current query. Active hint: {activeSuggestion || "none"}
+      </Text>
       <Box flexDirection="column">
         {visibleSuggestions.map((item, index) => (
           <Text

@@ -41663,9 +41663,14 @@ function TextDetail(props) {
       children: props.text
     }, undefined, false, undefined, this);
   }
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(BoxText, {
+    segments
+  }, undefined, false, undefined, this);
+}
+function BoxText(props) {
   return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
     wrap: "wrap",
-    children: segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+    children: props.segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
       color: segment.color,
       bold: segment.bold,
       children: segment.text
@@ -41701,6 +41706,7 @@ function DetailPane(props) {
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
         children: [
+          props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} \xB7 ` : "",
           props.entry.prefix ? `${props.entry.prefix} \xB7 ` : "",
           props.entry.timeText ?? "no-time",
           " \xB7 ",
@@ -42080,8 +42086,11 @@ function LogList(props) {
     children: [
       /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
         dimColor: true,
-        children: props.columns.map((column) => cell(column.label, column.width)).join(" ")
-      }, undefined, false, undefined, this),
+        children: [
+          props.showSourceLabel ? `${cell("SOURCE", 16)} ` : "",
+          props.columns.map((column) => cell(column.label, column.width)).join(" ")
+        ]
+      }, undefined, true, undefined, this),
       props.entries.map((entry, index) => {
         const absoluteIndex = props.startIndex + index;
         const selected = absoluteIndex === props.selectedIndex;
@@ -42097,6 +42106,7 @@ function LogList(props) {
           children: [
             selected ? ">" : " ",
             " ",
+            props.showSourceLabel ? `${cell(entry.sourceLabel, 16)} ` : "",
             props.columns.map((column) => cell(fields[column.key], column.width)).join(" ")
           ]
         }, entry.id, true, undefined, this);
@@ -42113,6 +42123,7 @@ var init_LogList = __esm(async () => {
 // src/components/QueryBar.tsx
 function QueryBar(props) {
   const visibleSuggestions = props.suggestions.slice(0, 5);
+  const activeSuggestion = visibleSuggestions[props.selectedSuggestionIndex] ?? "";
   return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -42138,8 +42149,11 @@ function QueryBar(props) {
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
         dimColor: true,
-        children: "Tab/Shift+Tab cycles suggestions. Enter applies current query."
-      }, undefined, false, undefined, this),
+        children: [
+          "Tab/Shift+Tab cycles suggestions. Enter applies current query. Active hint: ",
+          activeSuggestion || "none"
+        ]
+      }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
         flexDirection: "column",
         children: visibleSuggestions.map((item, index) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
@@ -42767,6 +42781,7 @@ function parseLine(line, context) {
     return {
       id: createId("entry"),
       sourceId: context.sourceId,
+      sourceLabel: context.sourceLabel,
       lineNumber: context.lineNumber,
       raw: line,
       prefix,
@@ -42787,6 +42802,7 @@ function parseLine(line, context) {
   return {
     id: createId("entry"),
     sourceId: context.sourceId,
+    sourceLabel: context.sourceLabel,
     lineNumber: context.lineNumber,
     raw: line,
     prefix,
@@ -42820,7 +42836,7 @@ function startCmdSource(source, events) {
       for await (const line of rl) {
         lineNumber += 1;
         const fullLine = prefix ? `${prefix} | ${line}` : line;
-        events.onEntries(source.id, [parseLine(fullLine, { sourceId: source.id, lineNumber })]);
+        events.onEntries(source.id, [parseLine(fullLine, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
       }
     })();
   };
@@ -42852,7 +42868,7 @@ function startFileSource(source, events) {
     const batch = [];
     for await (const line of rl) {
       lineNumber += 1;
-      batch.push(parseLine(line, { sourceId: source.id, lineNumber }));
+      batch.push(parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }));
       if (batch.length >= 200) {
         events.onEntries(source.id, batch.splice(0, batch.length));
       }
@@ -42882,7 +42898,7 @@ function startStdinSource(source, events) {
   (async () => {
     for await (const line of rl) {
       lineNumber += 1;
-      events.onEntries(source.id, [parseLine(line, { sourceId: source.id, lineNumber })]);
+      events.onEntries(source.id, [parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
     }
     events.onStatus("stdin stream completed");
   })();
@@ -42929,14 +42945,14 @@ function startUrlSource(source, events) {
       if (lines.length > 0) {
         const entries = lines.map((line) => {
           lineNumber += 1;
-          return parseLine(line, { sourceId: source.id, lineNumber });
+          return parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber });
         });
         events.onEntries(source.id, entries);
       }
     }
     if (rest.length > 0) {
       lineNumber += 1;
-      events.onEntries(source.id, [parseLine(rest, { sourceId: source.id, lineNumber })]);
+      events.onEntries(source.id, [parseLine(rest, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
     }
     events.onStatus(`URL source ${source.label} completed`);
   })().catch((error) => {
@@ -43150,6 +43166,7 @@ function LogScreen() {
   const detailSearch = import_react25.useMemo(() => createDetailSearch(jsonRows, detailSearchTerm), [jsonRows, detailSearchTerm]);
   const detailMatches = selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.matches : textSearch.matches;
   const querySuggestions = import_react25.useMemo(() => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft), [activeSource?.entries, queryDraft]);
+  const selectedSuggestionIndex = Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1));
   const renderCountRef = import_react25.useRef(0);
   const lastPerfRef = import_react25.useRef({ count: 0, at: Date.now() });
   const pendingYankRef = import_react25.useRef(false);
@@ -43416,7 +43433,8 @@ function LogScreen() {
             entries: visibleWindow,
             selectedIndex,
             startIndex: start,
-            columns: listColumns
+            columns: listColumns,
+            showSourceLabel: mergedView
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
@@ -43437,7 +43455,7 @@ function LogScreen() {
           }, undefined, false, undefined, this) : focusMode === "query" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(QueryBar, {
             value: queryDraft,
             suggestions: querySuggestions,
-            selectedSuggestionIndex: Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1)),
+            selectedSuggestionIndex,
             onChange: (value) => setState((prev) => ({ ...prev, queryDraft: value })),
             onSubmit: (value) => setState((prev) => updateCurrentSource({
               ...prev,
@@ -43466,7 +43484,8 @@ function LogScreen() {
             jsonRows,
             jsonCursor: activeSource?.detailCursor ?? 0,
             searchTerm: detailSearchTerm,
-            searchMatches: detailMatches
+            searchMatches: detailMatches,
+            mergedView
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]

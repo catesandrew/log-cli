@@ -16,7 +16,7 @@ export function startCmdSource(source: SourceSpec, events: SourceEvents): Source
       for await (const line of rl) {
         lineNumber += 1;
         const fullLine = prefix ? `${prefix} | ${line}` : line;
-        events.onEntries(source.id, [parseLine(fullLine, { sourceId: source.id, lineNumber })]);
+        events.onEntries(source.id, [parseLine(fullLine, { sourceId: source.id, sourceLabel: source.label, lineNumber })]);
       }
     })();
   };
