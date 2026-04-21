@@ -26,6 +26,7 @@ export function getDefaultAppState(sources: SourceSpec[], config: AppConfig): Ap
     detailMode: "tree",
     filterDraft: "",
     queryDraft: "",
+    querySuggestionIndex: 0,
     detailSearchDraft: "",
     detailSearchTerm: "",
     detailSearchMatches: [],

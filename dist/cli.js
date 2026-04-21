@@ -42103,7 +42103,7 @@ function QueryBar(props) {
         dimColor: true,
         children: [
           "Suggestions: ",
-          props.suggestions.join(" \xB7 ")
+          props.suggestions.map((item, index) => index === props.selectedSuggestionIndex ? `[${item}]` : item).join(" \xB7 ")
         ]
       }, undefined, true, undefined, this)
     ]
@@ -42229,6 +42229,28 @@ function buildFilter(filterText) {
     return () => true;
   }
   return (entry) => tokens.every((token) => tokenMatches(entry, token));
+}
+
+// src/lib/ingestState.ts
+function applyEntryBatch(source, batch, maxEntries) {
+  if (batch.length === 0) {
+    return source;
+  }
+  const merged = [...source.entries, ...batch];
+  const overflow = Math.max(0, merged.length - maxEntries);
+  const entries = overflow > 0 ? merged.slice(overflow) : merged;
+  const droppedCount = source.droppedCount + overflow;
+  const jsonCount = entries.filter((entry) => entry.kind === "json").length;
+  const textCount = entries.length - jsonCount;
+  const selectedIndex = source.follow ? Math.max(0, entries.length - 1) : Math.min(source.selectedIndex, Math.max(0, entries.length - 1));
+  return {
+    ...source,
+    entries,
+    droppedCount,
+    jsonCount,
+    textCount,
+    selectedIndex
+  };
 }
 
 // src/lib/jsonTree.ts
@@ -42496,6 +42518,33 @@ function buildQuery(input) {
   const expression = parse(tokenize4(trimmed));
   return (entry) => evaluate(expression, entry);
 }
+
+// src/lib/queryAutocomplete.ts
+function buildQuerySuggestions(entries, input) {
+  const query = input.trim().toLowerCase();
+  const fieldNames = new Set;
+  for (const entry of entries) {
+    for (const key of Object.keys(entry.fieldIndex)) {
+      fieldNames.add(key);
+    }
+  }
+  const fieldSuggestions = [...fieldNames].sort().map((field) => `${field} = ""`);
+  const combined = [...DEFAULT_SNIPPETS, ...fieldSuggestions];
+  if (!query) {
+    return combined.slice(0, 6);
+  }
+  return combined.filter((item) => item.toLowerCase().includes(query)).slice(0, 8);
+}
+var DEFAULT_SNIPPETS;
+var init_queryAutocomplete = __esm(() => {
+  DEFAULT_SNIPPETS = [
+    'level = "error"',
+    "exists(user.id)",
+    'level in ("warn","error")',
+    'message like "timeout"',
+    "message =~ /health/"
+  ];
+});
 
 // src/lib/ringBuffer.ts
 class RingBuffer {
@@ -42860,7 +42909,7 @@ var init_urlSource = __esm(() => {
 });
 
 // src/lib/sourceManager.ts
-function startSourceManager(sources, config, events) {
+function createSourceManagerHarness(sources, config, events) {
   const handles = [];
   const pending = new Map;
   const buffers = new Map;
@@ -42877,7 +42926,6 @@ function startSourceManager(sources, config, events) {
       events.onBatch(sourceId, buffer.toArray(), buffer.droppedCount);
     }
   };
-  const interval = setInterval(flush, config.batchMs);
   const onEntries = (sourceId, entries) => {
     const current = pending.get(sourceId) ?? [];
     current.push(...entries);
@@ -42904,12 +42952,23 @@ function startSourceManager(sources, config, events) {
         break;
     }
   }
+  return {
+    onEntries,
+    flush,
+    close: () => {
+      flush();
+      for (const handle of handles) {
+        handle.close();
+      }
+    }
+  };
+}
+function startSourceManager(sources, config, events) {
+  const harness = createSourceManagerHarness(sources, config, events);
+  const interval = setInterval(harness.flush, config.batchMs);
   return () => {
     clearInterval(interval);
-    flush();
-    for (const handle of handles) {
-      handle.close();
-    }
+    harness.close();
   };
 }
 var init_sourceManager = __esm(() => {
@@ -42918,6 +42977,28 @@ var init_sourceManager = __esm(() => {
   init_stdinSource();
   init_urlSource();
 });
+
+// src/lib/textSearch.ts
+function createTextSearch(text, term) {
+  const lines = text.split(/\r?\n/);
+  const lowered = term.toLowerCase();
+  const matches = lowered ? lines.map((line, index) => ({ line, index })).filter((item) => item.line.toLowerCase().includes(lowered)).map((item) => item.index) : [];
+  const next = (index) => {
+    for (const match of matches) {
+      if (match > index)
+        return match;
+    }
+    return matches[0] ?? index;
+  };
+  const prev = (index) => {
+    for (let i = matches.length - 1;i >= 0; i -= 1) {
+      if (matches[i] < index)
+        return matches[i];
+    }
+    return matches.at(-1) ?? index;
+  };
+  return { matches, next, prev };
+}
 
 // src/screens/LogScreen.tsx
 var exports_LogScreen = {};
@@ -42989,6 +43070,7 @@ function LogScreen() {
   const detailMode = useAppState((state) => state.detailMode);
   const filterDraft = useAppState((state) => state.filterDraft);
   const queryDraft = useAppState((state) => state.queryDraft);
+  const querySuggestionIndex = useAppState((state) => state.querySuggestionIndex);
   const detailSearchDraft = useAppState((state) => state.detailSearchDraft);
   const detailSearchTerm = useAppState((state) => state.detailSearchTerm);
   const detailSearchMatches = useAppState((state) => state.detailSearchMatches);
@@ -43018,7 +43100,10 @@ function LogScreen() {
       return [];
     return flattenJsonTree(selectedEntry.jsonValue, new Set(activeSource?.expandedPaths ?? ["root"]));
   }, [activeSource?.expandedPaths, detailMode, selectedEntry]);
+  const textSearch = import_react25.useMemo(() => createTextSearch(selectedEntry?.raw ?? "", detailSearchTerm), [detailSearchTerm, selectedEntry?.raw]);
   const detailSearch = import_react25.useMemo(() => createDetailSearch(jsonRows, detailSearchTerm), [jsonRows, detailSearchTerm]);
+  const detailMatches = selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.matches : textSearch.matches;
+  const querySuggestions = import_react25.useMemo(() => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft), [activeSource?.entries, queryDraft]);
   const renderCountRef = import_react25.useRef(0);
   const lastPerfRef = import_react25.useRef({ count: 0, at: Date.now() });
   const pendingYankRef = import_react25.useRef(false);
@@ -43032,15 +43117,8 @@ function LogScreen() {
           sources: prev.sources.map((source) => {
             if (source.spec.id !== sourceId)
               return source;
-            const jsonCount = entries.filter((entry) => entry.kind === "json").length;
-            const textCount = entries.length - jsonCount;
-            const updatedSource = {
-              ...source,
-              entries,
-              droppedCount,
-              jsonCount,
-              textCount
-            };
+            const updatedSource = applyEntryBatch(source, entries, prev.config.maxEntries);
+            updatedSource.droppedCount = Math.max(updatedSource.droppedCount, droppedCount);
             const filteredLength = getVisibleEntries(updatedSource).length;
             if (updatedSource.follow) {
               updatedSource.selectedIndex = Math.max(0, filteredLength - 1);
@@ -43071,8 +43149,8 @@ function LogScreen() {
     }
   }, [selectedIndex, focusMode, detailMode, detailSearchTerm, lastFlushSize, fps, setState]);
   import_react25.useEffect(() => {
-    setState((prev) => prev.detailSearchMatches === detailSearch.matches ? prev : { ...prev, detailSearchMatches: detailSearch.matches });
-  }, [detailSearch.matches, setState]);
+    setState((prev) => prev.detailSearchMatches === detailMatches ? prev : { ...prev, detailSearchMatches: detailMatches });
+  }, [detailMatches, setState]);
   useInput2((input, key) => {
     if (focusMode === "filter") {
       if (key.escape) {
@@ -43081,8 +43159,19 @@ function LogScreen() {
       return;
     }
     if (focusMode === "query") {
+      if (key.tab) {
+        if (querySuggestions.length === 0)
+          return;
+        const nextIndex = key.shift ? (querySuggestionIndex - 1 + querySuggestions.length) % querySuggestions.length : (querySuggestionIndex + 1) % querySuggestions.length;
+        setState((prev) => ({
+          ...prev,
+          querySuggestionIndex: nextIndex,
+          queryDraft: querySuggestions[nextIndex] ?? prev.queryDraft
+        }));
+        return;
+      }
       if (key.escape) {
-        setState((prev) => ({ ...prev, focusMode: "list", queryDraft: "" }));
+        setState((prev) => ({ ...prev, focusMode: "list", queryDraft: "", querySuggestionIndex: 0 }));
       }
       return;
     }
@@ -43113,7 +43202,12 @@ function LogScreen() {
       return;
     }
     if (input === "Q") {
-      setState((prev) => ({ ...prev, focusMode: "query", queryDraft: baseSource?.query ?? "" }));
+      setState((prev) => ({
+        ...prev,
+        focusMode: "query",
+        queryDraft: baseSource?.query ?? "",
+        querySuggestionIndex: 0
+      }));
       return;
     }
     if (input === "M" && sources.length > 1) {
@@ -43203,11 +43297,17 @@ function LogScreen() {
           return;
         }
         if (input === "n") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: detailSearch.next(source.detailCursor) })));
+          setState((prev) => updateCurrentSource(prev, (source) => ({
+            ...source,
+            detailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.next(source.detailCursor) : textSearch.next(source.detailCursor)
+          })));
           return;
         }
         if (input === "N") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: detailSearch.prev(source.detailCursor) })));
+          setState((prev) => updateCurrentSource(prev, (source) => ({
+            ...source,
+            detailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.prev(source.detailCursor) : textSearch.prev(source.detailCursor)
+          })));
           return;
         }
         if (input === "y") {
@@ -43290,9 +43390,15 @@ function LogScreen() {
             })))
           }, undefined, false, undefined, this) : focusMode === "query" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(QueryBar, {
             value: queryDraft,
-            suggestions: ['level = "error"', "exists(user.id)", 'message like "timeout"'],
+            suggestions: querySuggestions,
+            selectedSuggestionIndex: Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1)),
             onChange: (value) => setState((prev) => ({ ...prev, queryDraft: value })),
-            onSubmit: (value) => setState((prev) => updateCurrentSource({ ...prev, focusMode: "list", queryDraft: "" }, (source) => ({
+            onSubmit: (value) => setState((prev) => updateCurrentSource({
+              ...prev,
+              focusMode: "list",
+              queryDraft: "",
+              querySuggestionIndex: 0
+            }, (source) => ({
               ...source,
               query: value,
               selectedIndex: 0,
@@ -43306,7 +43412,7 @@ function LogScreen() {
               focusMode: "detail",
               detailSearchDraft: "",
               detailSearchTerm: value,
-              detailSearchMatches: createDetailSearch(jsonRows, value).matches
+              detailSearchMatches: selectedEntry?.kind === "json" && detailMode === "tree" ? createDetailSearch(jsonRows, value).matches : createTextSearch(selectedEntry?.raw ?? "", value).matches
             }))
           }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(DetailPane, {
             entry: selectedEntry,
@@ -43314,7 +43420,7 @@ function LogScreen() {
             jsonRows,
             jsonCursor: activeSource?.detailCursor ?? 0,
             searchTerm: detailSearchTerm,
-            searchMatches: detailSearchMatches
+            searchMatches: detailMatches
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]
@@ -43336,6 +43442,7 @@ var import_react25, jsx_dev_runtime14;
 var init_LogScreen = __esm(async () => {
   init_clipboardy();
   init_useTerminalSize();
+  init_queryAutocomplete();
   init_sourceManager();
   init_AppState();
   await __promiseAll([
@@ -57054,6 +57161,7 @@ function getDefaultAppState(sources, config2) {
     detailMode: "tree",
     filterDraft: "",
     queryDraft: "",
+    querySuggestionIndex: 0,
     detailSearchDraft: "",
     detailSearchTerm: "",
     detailSearchMatches: [],

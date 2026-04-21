@@ -13,10 +13,13 @@ import { SearchBar } from "../components/SearchBar";
 import { useTerminalSize } from "../hooks/useTerminalSize";
 import { copyCurrentJsonValue, copyCurrentKey, copyCurrentPath, createDetailSearch } from "../lib/detailActions";
 import { buildFilter } from "../lib/filter";
+import { applyEntryBatch } from "../lib/ingestState";
 import { flattenJsonTree } from "../lib/jsonTree";
 import { mergeEntriesByTime } from "../lib/merge";
 import { buildQuery } from "../lib/query";
+import { buildQuerySuggestions } from "../lib/queryAutocomplete";
 import { startSourceManager } from "../lib/sourceManager";
+import { createTextSearch } from "../lib/textSearch";
 import { useAppState, useAppStateStore, useSetAppState } from "../state/AppState";
 import type { AppState, JsonTreeRow, LogEntry, SourceState } from "../types";
 
@@ -89,6 +92,7 @@ export function LogScreen(): React.ReactNode {
   const detailMode = useAppState(state => state.detailMode);
   const filterDraft = useAppState(state => state.filterDraft);
   const queryDraft = useAppState(state => state.queryDraft);
+  const querySuggestionIndex = useAppState(state => state.querySuggestionIndex);
   const detailSearchDraft = useAppState(state => state.detailSearchDraft);
   const detailSearchTerm = useAppState(state => state.detailSearchTerm);
   const detailSearchMatches = useAppState(state => state.detailSearchMatches);
@@ -123,9 +127,21 @@ export function LogScreen(): React.ReactNode {
     if (!selectedEntry || selectedEntry.kind !== "json" || detailMode !== "tree") return [];
     return flattenJsonTree(selectedEntry.jsonValue, new Set(activeSource?.expandedPaths ?? ["root"]));
   }, [activeSource?.expandedPaths, detailMode, selectedEntry]);
+  const textSearch = useMemo(
+    () => createTextSearch(selectedEntry?.raw ?? "", detailSearchTerm),
+    [detailSearchTerm, selectedEntry?.raw],
+  );
   const detailSearch = useMemo(
     () => createDetailSearch(jsonRows, detailSearchTerm),
     [jsonRows, detailSearchTerm],
+  );
+  const detailMatches =
+    selectedEntry?.kind === "json" && detailMode === "tree"
+      ? detailSearch.matches
+      : textSearch.matches;
+  const querySuggestions = useMemo(
+    () => buildQuerySuggestions(activeSource?.entries ?? [], queryDraft),
+    [activeSource?.entries, queryDraft],
   );
   const renderCountRef = useRef(0);
   const lastPerfRef = useRef({ count: 0, at: Date.now() });
@@ -143,15 +159,8 @@ export function LogScreen(): React.ReactNode {
             lastFlushSize: entries.length,
             sources: prev.sources.map(source => {
               if (source.spec.id !== sourceId) return source;
-              const jsonCount = entries.filter(entry => entry.kind === "json").length;
-              const textCount = entries.length - jsonCount;
-              const updatedSource: SourceState = {
-                ...source,
-                entries,
-                droppedCount,
-                jsonCount,
-                textCount,
-              };
+              const updatedSource = applyEntryBatch(source, entries, prev.config.maxEntries);
+              updatedSource.droppedCount = Math.max(updatedSource.droppedCount, droppedCount);
               const filteredLength = getVisibleEntries(updatedSource).length;
               if (updatedSource.follow) {
                 updatedSource.selectedIndex = Math.max(0, filteredLength - 1);
@@ -188,9 +197,9 @@ export function LogScreen(): React.ReactNode {
 
   useEffect(() => {
     setState(prev =>
-      prev.detailSearchMatches === detailSearch.matches ? prev : { ...prev, detailSearchMatches: detailSearch.matches },
+      prev.detailSearchMatches === detailMatches ? prev : { ...prev, detailSearchMatches: detailMatches },
     );
-  }, [detailSearch.matches, setState]);
+  }, [detailMatches, setState]);
 
   useInput((input, key) => {
     if (focusMode === "filter") {
@@ -201,8 +210,20 @@ export function LogScreen(): React.ReactNode {
     }
 
     if (focusMode === "query") {
+      if (key.tab) {
+        if (querySuggestions.length === 0) return;
+        const nextIndex = key.shift
+          ? (querySuggestionIndex - 1 + querySuggestions.length) % querySuggestions.length
+          : (querySuggestionIndex + 1) % querySuggestions.length;
+        setState(prev => ({
+          ...prev,
+          querySuggestionIndex: nextIndex,
+          queryDraft: querySuggestions[nextIndex] ?? prev.queryDraft,
+        }));
+        return;
+      }
       if (key.escape) {
-        setState(prev => ({ ...prev, focusMode: "list", queryDraft: "" }));
+        setState(prev => ({ ...prev, focusMode: "list", queryDraft: "", querySuggestionIndex: 0 }));
       }
       return;
     }
@@ -240,7 +261,12 @@ export function LogScreen(): React.ReactNode {
     }
 
     if (input === "Q") {
-      setState(prev => ({ ...prev, focusMode: "query", queryDraft: baseSource?.query ?? "" }));
+      setState(prev => ({
+        ...prev,
+        focusMode: "query",
+        queryDraft: baseSource?.query ?? "",
+        querySuggestionIndex: 0,
+      }));
       return;
     }
 
@@ -305,7 +331,7 @@ export function LogScreen(): React.ReactNode {
         }
       }
 
-      if (selectedEntry?.kind === "json" && detailMode === "tree") {
+        if (selectedEntry?.kind === "json" && detailMode === "tree") {
         if (key.upArrow || input === "k") {
           setState(prev => updateCurrentSource(prev, source => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })));
           return;
@@ -333,11 +359,27 @@ export function LogScreen(): React.ReactNode {
           return;
         }
         if (input === "n") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, detailCursor: detailSearch.next(source.detailCursor) })));
+          setState(prev =>
+            updateCurrentSource(prev, source => ({
+              ...source,
+              detailCursor:
+                selectedEntry?.kind === "json" && detailMode === "tree"
+                  ? detailSearch.next(source.detailCursor)
+                  : textSearch.next(source.detailCursor),
+            })),
+          );
           return;
         }
         if (input === "N") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, detailCursor: detailSearch.prev(source.detailCursor) })));
+          setState(prev =>
+            updateCurrentSource(prev, source => ({
+              ...source,
+              detailCursor:
+                selectedEntry?.kind === "json" && detailMode === "tree"
+                  ? detailSearch.prev(source.detailCursor)
+                  : textSearch.prev(source.detailCursor),
+            })),
+          );
           return;
         }
         if (input === "y") {
@@ -425,16 +467,25 @@ export function LogScreen(): React.ReactNode {
             ) : focusMode === "query" ? (
               <QueryBar
                 value={queryDraft}
-                suggestions={["level = \"error\"", "exists(user.id)", "message like \"timeout\""]}
+                suggestions={querySuggestions}
+                selectedSuggestionIndex={Math.min(querySuggestionIndex, Math.max(0, querySuggestions.length - 1))}
                 onChange={value => setState(prev => ({ ...prev, queryDraft: value }))}
                 onSubmit={value =>
                   setState(prev =>
-                    updateCurrentSource({ ...prev, focusMode: "list", queryDraft: "" }, source => ({
-                      ...source,
-                      query: value,
-                      selectedIndex: 0,
-                      follow: false,
-                    })),
+                    updateCurrentSource(
+                      {
+                        ...prev,
+                        focusMode: "list",
+                        queryDraft: "",
+                        querySuggestionIndex: 0,
+                      },
+                      source => ({
+                        ...source,
+                        query: value,
+                        selectedIndex: 0,
+                        follow: false,
+                      }),
+                    ),
                   )
                 }
               />
@@ -448,7 +499,10 @@ export function LogScreen(): React.ReactNode {
                     focusMode: "detail",
                     detailSearchDraft: "",
                     detailSearchTerm: value,
-                    detailSearchMatches: createDetailSearch(jsonRows, value).matches,
+                    detailSearchMatches:
+                      selectedEntry?.kind === "json" && detailMode === "tree"
+                        ? createDetailSearch(jsonRows, value).matches
+                        : createTextSearch(selectedEntry?.raw ?? "", value).matches,
                   }))
                 }
               />
@@ -459,7 +513,7 @@ export function LogScreen(): React.ReactNode {
                 jsonRows={jsonRows}
                 jsonCursor={activeSource?.detailCursor ?? 0}
                 searchTerm={detailSearchTerm}
-                searchMatches={detailSearchMatches}
+                searchMatches={detailMatches}
               />
             )}
           </Box>

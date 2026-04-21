@@ -11,11 +11,15 @@ type Events = {
   onStatus: (message: string) => void;
 };
 
-export function startSourceManager(
+export function createSourceManagerHarness(
   sources: SourceSpec[],
   config: AppConfig,
   events: Events,
-): () => void {
+): {
+  onEntries: (sourceId: string, entries: LogEntry[]) => void;
+  flush: () => void;
+  close: () => void;
+} {
   const handles: SourceHandle[] = [];
   const pending = new Map<string, LogEntry[]>();
   const buffers = new Map<string, RingBuffer<LogEntry>>();
@@ -33,8 +37,6 @@ export function startSourceManager(
       events.onBatch(sourceId, buffer.toArray(), buffer.droppedCount);
     }
   };
-
-  const interval = setInterval(flush, config.batchMs);
 
   const onEntries = (sourceId: string, entries: LogEntry[]) => {
     const current = pending.get(sourceId) ?? [];
@@ -64,11 +66,28 @@ export function startSourceManager(
     }
   }
 
+  return {
+    onEntries,
+    flush,
+    close: () => {
+      flush();
+      for (const handle of handles) {
+        handle.close();
+      }
+    },
+  };
+}
+
+export function startSourceManager(
+  sources: SourceSpec[],
+  config: AppConfig,
+  events: Events,
+): () => void {
+  const harness = createSourceManagerHarness(sources, config, events);
+  const interval = setInterval(harness.flush, config.batchMs);
+
   return () => {
     clearInterval(interval);
-    flush();
-    for (const handle of handles) {
-      handle.close();
-    }
+    harness.close();
   };
 }

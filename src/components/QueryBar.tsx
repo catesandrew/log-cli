@@ -5,6 +5,7 @@ import { Box, Text } from "../ink";
 export function QueryBar(props: {
   value: string;
   suggestions: string[];
+  selectedSuggestionIndex: number;
   onChange: (value: string) => void;
   onSubmit: (value: string) => void;
 }): React.ReactNode {
@@ -18,7 +19,11 @@ export function QueryBar(props: {
         <Text>query&gt; </Text>
         <TextInput value={props.value} onChange={props.onChange} onSubmit={props.onSubmit} />
       </Box>
-      <Text dimColor>Suggestions: {props.suggestions.join(" · ")}</Text>
+      <Text dimColor>
+        Suggestions: {props.suggestions.map((item, index) => (
+          index === props.selectedSuggestionIndex ? `[${item}]` : item
+        )).join(" · ")}
+      </Text>
     </Box>
   );
 }

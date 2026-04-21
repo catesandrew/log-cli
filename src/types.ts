@@ -76,6 +76,7 @@ export type AppState = {
   detailMode: DetailMode;
   filterDraft: string;
   queryDraft: string;
+  querySuggestionIndex: number;
   detailSearchDraft: string;
   detailSearchTerm: string;
   detailSearchMatches: number[];
