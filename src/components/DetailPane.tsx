@@ -9,6 +9,8 @@ export function DetailPane(props: {
   detailMode: DetailMode;
   jsonRows: JsonTreeRow[];
   jsonCursor: number;
+  searchTerm: string;
+  searchMatches: number[];
 }): React.ReactNode {
   if (!props.entry) {
     return <Text dimColor>No entry selected</Text>;
@@ -23,6 +25,11 @@ export function DetailPane(props: {
         {props.entry.prefix ? `${props.entry.prefix} · ` : ""}
         {props.entry.timeText ?? "no-time"} · {String(props.entry.levelNormalized)}
       </Text>
+      {props.searchTerm ? (
+        <Text dimColor>
+          search: {props.searchTerm} · matches: {props.searchMatches.length}
+        </Text>
+      ) : null}
       <Box marginTop={1} flexDirection="column">
         {props.entry.kind === "json" && props.detailMode === "tree" ? (
           <JsonTree rows={props.jsonRows} cursor={props.jsonCursor} />

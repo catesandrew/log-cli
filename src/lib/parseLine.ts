@@ -51,6 +51,33 @@ function previewFromJson(json: unknown): string {
   }
 }
 
+function addIndexedFields(
+  target: Record<string, string>,
+  prefix: string,
+  value: unknown,
+): void {
+  const key = prefix.toLowerCase();
+  if (typeof value === "string") {
+    target[key] = value;
+    return;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    target[key] = String(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    target[key] = previewFromJson(value);
+    value.forEach((item, index) => addIndexedFields(target, `${prefix}.${index}`, item));
+    return;
+  }
+  if (value && typeof value === "object") {
+    target[key] = previewFromJson(value);
+    for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
+      addIndexedFields(target, `${prefix}.${childKey}`, childValue);
+    }
+  }
+}
+
 function extractFromRecord(record: Record<string, unknown>) {
   let timeText: string | undefined;
   let timestampMs: number | undefined;
@@ -91,8 +118,7 @@ function extractFromRecord(record: Record<string, unknown>) {
   };
 
   for (const [key, value] of Object.entries(record)) {
-    fieldIndex[key.toLowerCase()] =
-      typeof value === "string" ? value : previewFromJson(value);
+    addIndexedFields(fieldIndex, key, value);
   }
 
   if (timeText) fieldIndex.time = timeText;

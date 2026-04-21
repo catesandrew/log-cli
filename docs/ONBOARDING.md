@@ -21,6 +21,8 @@
 - Keep the list virtualized
 - Keep updates batched for high-volume streams
 - Do not bypass the source manager to push lines into state directly
+- Keep advanced filtering in `src/lib/query.ts`, not inline in the screen
+- Keep detail-pane copy/search behavior in reusable helpers under `src/lib/`
 
 ## Verification
 
@@ -30,3 +32,12 @@ bun test
 bun run test:e2e
 bun run build
 ```
+
+## Important feature boundaries
+
+- `src/lib/parseLine.ts`: normalization for JSON, prefixed JSON, and plain text
+- `src/lib/query.ts`: boolean query language
+- `src/lib/merge.ts`: merged multi-source ordering
+- `src/lib/detailActions.ts`: search and yank primitives for detail mode
+- `src/lib/ansi.ts`: basic ANSI segment preservation
+- `src/screens/LogScreen.tsx`: input-mode orchestration, not low-level parsing logic

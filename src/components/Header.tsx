@@ -6,6 +6,7 @@ export function Header(props: {
   source: SourceState | undefined;
   activeIndex: number;
   totalSources: number;
+  mergedView: boolean;
 }): React.ReactNode {
   const source = props.source;
   return (
@@ -13,11 +14,11 @@ export function Header(props: {
       <Box justifyContent="space-between">
         <Text color="cyan">log</Text>
         <Text dimColor>
-          tab {props.activeIndex + 1}/{props.totalSources}
+          {props.mergedView ? "merged" : `tab ${props.activeIndex + 1}/${props.totalSources}`}
         </Text>
       </Box>
       <Text dimColor>
-        {source?.spec.label ?? "no source"} · entries={source?.entries.length ?? 0} · json=
+        {(props.mergedView ? "all sources" : source?.spec.label) ?? "no source"} · entries={source?.entries.length ?? 0} · json=
         {source?.jsonCount ?? 0} · text={source?.textCount ?? 0} · dropped=
         {source?.droppedCount ?? 0}
       </Text>

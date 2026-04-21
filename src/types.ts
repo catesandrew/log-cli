@@ -9,7 +9,7 @@ export type NormalizedLevel =
 
 export type EntryKind = "json" | "text";
 export type DetailMode = "tree" | "raw";
-export type FocusMode = "list" | "detail" | "filter" | "help";
+export type FocusMode = "list" | "detail" | "filter" | "query" | "search" | "help";
 export type SourceKind = "file" | "stdin" | "url" | "cmd";
 
 export type LogEntry = {
@@ -47,6 +47,7 @@ export type SourceState = {
   jsonCount: number;
   textCount: number;
   filter: string;
+  query: string;
   follow: boolean;
   reverse: boolean;
   selectedIndex: number;
@@ -70,9 +71,14 @@ export type AppConfig = {
 export type AppState = {
   sources: SourceState[];
   activeSourceIndex: number;
+  mergedView: boolean;
   focusMode: FocusMode;
   detailMode: DetailMode;
   filterDraft: string;
+  queryDraft: string;
+  detailSearchDraft: string;
+  detailSearchTerm: string;
+  detailSearchMatches: number[];
   statusLine: string;
   fps: number;
   lastFlushSize: number;
@@ -93,4 +99,10 @@ export type JsonTreeRow = {
   valueLabel: string;
   expandable: boolean;
   expanded: boolean;
+};
+
+export type AnsiSegment = {
+  text: string;
+  color?: "red" | "green" | "yellow" | "blue" | "magenta" | "cyan" | "white";
+  bold?: boolean;
 };

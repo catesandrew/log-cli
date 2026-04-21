@@ -36805,7 +36805,7 @@ var init_renderer = __esm(async () => {
   renderer_default = renderer;
 });
 
-// node_modules/mimic-fn/index.js
+// node_modules/restore-cursor/node_modules/onetime/node_modules/mimic-fn/index.js
 var require_mimic_fn = __commonJS((exports, module) => {
   var mimicFn = (to, from) => {
     for (const prop of Reflect.ownKeys(from)) {
@@ -36817,7 +36817,7 @@ var require_mimic_fn = __commonJS((exports, module) => {
   module.exports.default = mimicFn;
 });
 
-// node_modules/onetime/index.js
+// node_modules/restore-cursor/node_modules/onetime/index.js
 var require_onetime = __commonJS((exports, module) => {
   var mimicFn = require_mimic_fn();
   var calledFunctions = new WeakMap;
@@ -39260,162 +39260,2483 @@ var init_App2 = __esm(() => {
   jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
-// src/components/FullscreenLayout.tsx
-function FullscreenLayout(props) {
+// node_modules/is-docker/index.js
+import fs2 from "fs";
+function hasDockerEnv() {
+  try {
+    fs2.statSync("/.dockerenv");
+    return true;
+  } catch {
+    return false;
+  }
+}
+function hasDockerCGroup() {
+  try {
+    return fs2.readFileSync("/proc/self/cgroup", "utf8").includes("docker");
+  } catch {
+    return false;
+  }
+}
+function isDocker() {
+  if (isDockerCached === undefined) {
+    isDockerCached = hasDockerEnv() || hasDockerCGroup();
+  }
+  return isDockerCached;
+}
+var isDockerCached;
+var init_is_docker = () => {};
+
+// node_modules/is-inside-container/index.js
+import fs3 from "fs";
+function isInsideContainer() {
+  if (cachedResult === undefined) {
+    cachedResult = hasContainerEnv() || isDocker();
+  }
+  return cachedResult;
+}
+var cachedResult, hasContainerEnv = () => {
+  try {
+    fs3.statSync("/run/.containerenv");
+    return true;
+  } catch {
+    return false;
+  }
+};
+var init_is_inside_container = __esm(() => {
+  init_is_docker();
+});
+
+// node_modules/is-wsl/index.js
+import process13 from "process";
+import os3 from "os";
+import fs4 from "fs";
+var isWsl = () => {
+  if (process13.platform !== "linux") {
+    return false;
+  }
+  if (os3.release().toLowerCase().includes("microsoft")) {
+    if (isInsideContainer()) {
+      return false;
+    }
+    return true;
+  }
+  try {
+    if (fs4.readFileSync("/proc/version", "utf8").toLowerCase().includes("microsoft")) {
+      return !isInsideContainer();
+    }
+  } catch {}
+  if (fs4.existsSync("/proc/sys/fs/binfmt_misc/WSLInterop") || fs4.existsSync("/run/WSL")) {
+    return !isInsideContainer();
+  }
+  return false;
+}, is_wsl_default;
+var init_is_wsl = __esm(() => {
+  init_is_inside_container();
+  is_wsl_default = process13.env.__IS_WSL_TEST__ ? isWsl : isWsl();
+});
+
+// node_modules/isexe/windows.js
+var require_windows = __commonJS((exports, module) => {
+  module.exports = isexe;
+  isexe.sync = sync;
+  var fs5 = __require("fs");
+  function checkPathExt(path, options) {
+    var pathext = options.pathExt !== undefined ? options.pathExt : process.env.PATHEXT;
+    if (!pathext) {
+      return true;
+    }
+    pathext = pathext.split(";");
+    if (pathext.indexOf("") !== -1) {
+      return true;
+    }
+    for (var i = 0;i < pathext.length; i++) {
+      var p = pathext[i].toLowerCase();
+      if (p && path.substr(-p.length).toLowerCase() === p) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function checkStat(stat, path, options) {
+    if (!stat.isSymbolicLink() && !stat.isFile()) {
+      return false;
+    }
+    return checkPathExt(path, options);
+  }
+  function isexe(path, options, cb) {
+    fs5.stat(path, function(er, stat) {
+      cb(er, er ? false : checkStat(stat, path, options));
+    });
+  }
+  function sync(path, options) {
+    return checkStat(fs5.statSync(path), path, options);
+  }
+});
+
+// node_modules/isexe/mode.js
+var require_mode = __commonJS((exports, module) => {
+  module.exports = isexe;
+  isexe.sync = sync;
+  var fs5 = __require("fs");
+  function isexe(path, options, cb) {
+    fs5.stat(path, function(er, stat) {
+      cb(er, er ? false : checkStat(stat, options));
+    });
+  }
+  function sync(path, options) {
+    return checkStat(fs5.statSync(path), options);
+  }
+  function checkStat(stat, options) {
+    return stat.isFile() && checkMode(stat, options);
+  }
+  function checkMode(stat, options) {
+    var mod = stat.mode;
+    var uid = stat.uid;
+    var gid = stat.gid;
+    var myUid = options.uid !== undefined ? options.uid : process.getuid && process.getuid();
+    var myGid = options.gid !== undefined ? options.gid : process.getgid && process.getgid();
+    var u = parseInt("100", 8);
+    var g = parseInt("010", 8);
+    var o = parseInt("001", 8);
+    var ug = u | g;
+    var ret = mod & o || mod & g && gid === myGid || mod & u && uid === myUid || mod & ug && myUid === 0;
+    return ret;
+  }
+});
+
+// node_modules/isexe/index.js
+var require_isexe = __commonJS((exports, module) => {
+  var fs5 = __require("fs");
+  var core;
+  if (process.platform === "win32" || global.TESTING_WINDOWS) {
+    core = require_windows();
+  } else {
+    core = require_mode();
+  }
+  module.exports = isexe;
+  isexe.sync = sync;
+  function isexe(path, options, cb) {
+    if (typeof options === "function") {
+      cb = options;
+      options = {};
+    }
+    if (!cb) {
+      if (typeof Promise !== "function") {
+        throw new TypeError("callback not provided");
+      }
+      return new Promise(function(resolve, reject) {
+        isexe(path, options || {}, function(er, is) {
+          if (er) {
+            reject(er);
+          } else {
+            resolve(is);
+          }
+        });
+      });
+    }
+    core(path, options || {}, function(er, is) {
+      if (er) {
+        if (er.code === "EACCES" || options && options.ignoreErrors) {
+          er = null;
+          is = false;
+        }
+      }
+      cb(er, is);
+    });
+  }
+  function sync(path, options) {
+    try {
+      return core.sync(path, options || {});
+    } catch (er) {
+      if (options && options.ignoreErrors || er.code === "EACCES") {
+        return false;
+      } else {
+        throw er;
+      }
+    }
+  }
+});
+
+// node_modules/which/which.js
+var require_which = __commonJS((exports, module) => {
+  var isWindows3 = process.platform === "win32" || process.env.OSTYPE === "cygwin" || process.env.OSTYPE === "msys";
+  var path = __require("path");
+  var COLON = isWindows3 ? ";" : ":";
+  var isexe = require_isexe();
+  var getNotFoundError = (cmd) => Object.assign(new Error(`not found: ${cmd}`), { code: "ENOENT" });
+  var getPathInfo = (cmd, opt) => {
+    const colon = opt.colon || COLON;
+    const pathEnv = cmd.match(/\//) || isWindows3 && cmd.match(/\\/) ? [""] : [
+      ...isWindows3 ? [process.cwd()] : [],
+      ...(opt.path || process.env.PATH || "").split(colon)
+    ];
+    const pathExtExe = isWindows3 ? opt.pathExt || process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM" : "";
+    const pathExt = isWindows3 ? pathExtExe.split(colon) : [""];
+    if (isWindows3) {
+      if (cmd.indexOf(".") !== -1 && pathExt[0] !== "")
+        pathExt.unshift("");
+    }
+    return {
+      pathEnv,
+      pathExt,
+      pathExtExe
+    };
+  };
+  var which = (cmd, opt, cb) => {
+    if (typeof opt === "function") {
+      cb = opt;
+      opt = {};
+    }
+    if (!opt)
+      opt = {};
+    const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
+    const found = [];
+    const step = (i) => new Promise((resolve, reject) => {
+      if (i === pathEnv.length)
+        return opt.all && found.length ? resolve(found) : reject(getNotFoundError(cmd));
+      const ppRaw = pathEnv[i];
+      const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
+      const pCmd = path.join(pathPart, cmd);
+      const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
+      resolve(subStep(p, i, 0));
+    });
+    const subStep = (p, i, ii) => new Promise((resolve, reject) => {
+      if (ii === pathExt.length)
+        return resolve(step(i + 1));
+      const ext = pathExt[ii];
+      isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
+        if (!er && is) {
+          if (opt.all)
+            found.push(p + ext);
+          else
+            return resolve(p + ext);
+        }
+        return resolve(subStep(p, i, ii + 1));
+      });
+    });
+    return cb ? step(0).then((res) => cb(null, res), cb) : step(0);
+  };
+  var whichSync = (cmd, opt) => {
+    opt = opt || {};
+    const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
+    const found = [];
+    for (let i = 0;i < pathEnv.length; i++) {
+      const ppRaw = pathEnv[i];
+      const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
+      const pCmd = path.join(pathPart, cmd);
+      const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
+      for (let j = 0;j < pathExt.length; j++) {
+        const cur = p + pathExt[j];
+        try {
+          const is = isexe.sync(cur, { pathExt: pathExtExe });
+          if (is) {
+            if (opt.all)
+              found.push(cur);
+            else
+              return cur;
+          }
+        } catch (ex) {}
+      }
+    }
+    if (opt.all && found.length)
+      return found;
+    if (opt.nothrow)
+      return null;
+    throw getNotFoundError(cmd);
+  };
+  module.exports = which;
+  which.sync = whichSync;
+});
+
+// node_modules/path-key/index.js
+var require_path_key = __commonJS((exports, module) => {
+  var pathKey = (options = {}) => {
+    const environment = options.env || process.env;
+    const platform2 = options.platform || process.platform;
+    if (platform2 !== "win32") {
+      return "PATH";
+    }
+    return Object.keys(environment).reverse().find((key) => key.toUpperCase() === "PATH") || "Path";
+  };
+  module.exports = pathKey;
+  module.exports.default = pathKey;
+});
+
+// node_modules/cross-spawn/lib/util/resolveCommand.js
+var require_resolveCommand = __commonJS((exports, module) => {
+  var path = __require("path");
+  var which = require_which();
+  var getPathKey = require_path_key();
+  function resolveCommandAttempt(parsed, withoutPathExt) {
+    const env3 = parsed.options.env || process.env;
+    const cwd2 = process.cwd();
+    const hasCustomCwd = parsed.options.cwd != null;
+    const shouldSwitchCwd = hasCustomCwd && process.chdir !== undefined && !process.chdir.disabled;
+    if (shouldSwitchCwd) {
+      try {
+        process.chdir(parsed.options.cwd);
+      } catch (err) {}
+    }
+    let resolved;
+    try {
+      resolved = which.sync(parsed.command, {
+        path: env3[getPathKey({ env: env3 })],
+        pathExt: withoutPathExt ? path.delimiter : undefined
+      });
+    } catch (e) {} finally {
+      if (shouldSwitchCwd) {
+        process.chdir(cwd2);
+      }
+    }
+    if (resolved) {
+      resolved = path.resolve(hasCustomCwd ? parsed.options.cwd : "", resolved);
+    }
+    return resolved;
+  }
+  function resolveCommand(parsed) {
+    return resolveCommandAttempt(parsed) || resolveCommandAttempt(parsed, true);
+  }
+  module.exports = resolveCommand;
+});
+
+// node_modules/cross-spawn/lib/util/escape.js
+var require_escape = __commonJS((exports, module) => {
+  var metaCharsRegExp = /([()\][%!^"`<>&|;, *?])/g;
+  function escapeCommand(arg) {
+    arg = arg.replace(metaCharsRegExp, "^$1");
+    return arg;
+  }
+  function escapeArgument(arg, doubleEscapeMetaChars) {
+    arg = `${arg}`;
+    arg = arg.replace(/(?=(\\+?)?)\1"/g, "$1$1\\\"");
+    arg = arg.replace(/(?=(\\+?)?)\1$/, "$1$1");
+    arg = `"${arg}"`;
+    arg = arg.replace(metaCharsRegExp, "^$1");
+    if (doubleEscapeMetaChars) {
+      arg = arg.replace(metaCharsRegExp, "^$1");
+    }
+    return arg;
+  }
+  exports.command = escapeCommand;
+  exports.argument = escapeArgument;
+});
+
+// node_modules/shebang-regex/index.js
+var require_shebang_regex = __commonJS((exports, module) => {
+  module.exports = /^#!(.*)/;
+});
+
+// node_modules/shebang-command/index.js
+var require_shebang_command = __commonJS((exports, module) => {
+  var shebangRegex = require_shebang_regex();
+  module.exports = (string = "") => {
+    const match = string.match(shebangRegex);
+    if (!match) {
+      return null;
+    }
+    const [path, argument] = match[0].replace(/#! ?/, "").split(" ");
+    const binary = path.split("/").pop();
+    if (binary === "env") {
+      return argument;
+    }
+    return argument ? `${binary} ${argument}` : binary;
+  };
+});
+
+// node_modules/cross-spawn/lib/util/readShebang.js
+var require_readShebang = __commonJS((exports, module) => {
+  var fs5 = __require("fs");
+  var shebangCommand = require_shebang_command();
+  function readShebang(command) {
+    const size = 150;
+    const buffer = Buffer.alloc(size);
+    let fd;
+    try {
+      fd = fs5.openSync(command, "r");
+      fs5.readSync(fd, buffer, 0, size, 0);
+      fs5.closeSync(fd);
+    } catch (e) {}
+    return shebangCommand(buffer.toString());
+  }
+  module.exports = readShebang;
+});
+
+// node_modules/cross-spawn/lib/parse.js
+var require_parse = __commonJS((exports, module) => {
+  var path = __require("path");
+  var resolveCommand = require_resolveCommand();
+  var escape2 = require_escape();
+  var readShebang = require_readShebang();
+  var isWin = process.platform === "win32";
+  var isExecutableRegExp = /\.(?:com|exe)$/i;
+  var isCmdShimRegExp = /node_modules[\\/].bin[\\/][^\\/]+\.cmd$/i;
+  function detectShebang(parsed) {
+    parsed.file = resolveCommand(parsed);
+    const shebang = parsed.file && readShebang(parsed.file);
+    if (shebang) {
+      parsed.args.unshift(parsed.file);
+      parsed.command = shebang;
+      return resolveCommand(parsed);
+    }
+    return parsed.file;
+  }
+  function parseNonShell(parsed) {
+    if (!isWin) {
+      return parsed;
+    }
+    const commandFile = detectShebang(parsed);
+    const needsShell = !isExecutableRegExp.test(commandFile);
+    if (parsed.options.forceShell || needsShell) {
+      const needsDoubleEscapeMetaChars = isCmdShimRegExp.test(commandFile);
+      parsed.command = path.normalize(parsed.command);
+      parsed.command = escape2.command(parsed.command);
+      parsed.args = parsed.args.map((arg) => escape2.argument(arg, needsDoubleEscapeMetaChars));
+      const shellCommand = [parsed.command].concat(parsed.args).join(" ");
+      parsed.args = ["/d", "/s", "/c", `"${shellCommand}"`];
+      parsed.command = process.env.comspec || "cmd.exe";
+      parsed.options.windowsVerbatimArguments = true;
+    }
+    return parsed;
+  }
+  function parse(command, args, options) {
+    if (args && !Array.isArray(args)) {
+      options = args;
+      args = null;
+    }
+    args = args ? args.slice(0) : [];
+    options = Object.assign({}, options);
+    const parsed = {
+      command,
+      args,
+      options,
+      file: undefined,
+      original: {
+        command,
+        args
+      }
+    };
+    return options.shell ? parsed : parseNonShell(parsed);
+  }
+  module.exports = parse;
+});
+
+// node_modules/cross-spawn/lib/enoent.js
+var require_enoent = __commonJS((exports, module) => {
+  var isWin = process.platform === "win32";
+  function notFoundError(original, syscall) {
+    return Object.assign(new Error(`${syscall} ${original.command} ENOENT`), {
+      code: "ENOENT",
+      errno: "ENOENT",
+      syscall: `${syscall} ${original.command}`,
+      path: original.command,
+      spawnargs: original.args
+    });
+  }
+  function hookChildProcess(cp, parsed) {
+    if (!isWin) {
+      return;
+    }
+    const originalEmit = cp.emit;
+    cp.emit = function(name, arg1) {
+      if (name === "exit") {
+        const err = verifyENOENT(arg1, parsed);
+        if (err) {
+          return originalEmit.call(cp, "error", err);
+        }
+      }
+      return originalEmit.apply(cp, arguments);
+    };
+  }
+  function verifyENOENT(status, parsed) {
+    if (isWin && status === 1 && !parsed.file) {
+      return notFoundError(parsed.original, "spawn");
+    }
+    return null;
+  }
+  function verifyENOENTSync(status, parsed) {
+    if (isWin && status === 1 && !parsed.file) {
+      return notFoundError(parsed.original, "spawnSync");
+    }
+    return null;
+  }
+  module.exports = {
+    hookChildProcess,
+    verifyENOENT,
+    verifyENOENTSync,
+    notFoundError
+  };
+});
+
+// node_modules/cross-spawn/index.js
+var require_cross_spawn = __commonJS((exports, module) => {
+  var cp = __require("child_process");
+  var parse = require_parse();
+  var enoent = require_enoent();
+  function spawn(command, args, options) {
+    const parsed = parse(command, args, options);
+    const spawned = cp.spawn(parsed.command, parsed.args, parsed.options);
+    enoent.hookChildProcess(spawned, parsed);
+    return spawned;
+  }
+  function spawnSync(command, args, options) {
+    const parsed = parse(command, args, options);
+    const result = cp.spawnSync(parsed.command, parsed.args, parsed.options);
+    result.error = result.error || enoent.verifyENOENTSync(result.status, parsed);
+    return result;
+  }
+  module.exports = spawn;
+  module.exports.spawn = spawn;
+  module.exports.sync = spawnSync;
+  module.exports._parse = parse;
+  module.exports._enoent = enoent;
+});
+
+// node_modules/strip-final-newline/index.js
+function stripFinalNewline(input) {
+  const LF = typeof input === "string" ? `
+` : `
+`.charCodeAt();
+  const CR = typeof input === "string" ? "\r" : "\r".charCodeAt();
+  if (input[input.length - 1] === LF) {
+    input = input.slice(0, -1);
+  }
+  if (input[input.length - 1] === CR) {
+    input = input.slice(0, -1);
+  }
+  return input;
+}
+
+// node_modules/npm-run-path/node_modules/path-key/index.js
+function pathKey(options = {}) {
+  const {
+    env: env3 = process.env,
+    platform: platform2 = process.platform
+  } = options;
+  if (platform2 !== "win32") {
+    return "PATH";
+  }
+  return Object.keys(env3).reverse().find((key) => key.toUpperCase() === "PATH") || "Path";
+}
+
+// node_modules/npm-run-path/index.js
+import process14 from "process";
+import path from "path";
+import { fileURLToPath } from "url";
+var npmRunPath = ({
+  cwd: cwd2 = process14.cwd(),
+  path: pathOption = process14.env[pathKey()],
+  preferLocal = true,
+  execPath = process14.execPath,
+  addExecPath = true
+} = {}) => {
+  const cwdString = cwd2 instanceof URL ? fileURLToPath(cwd2) : cwd2;
+  const cwdPath = path.resolve(cwdString);
+  const result = [];
+  if (preferLocal) {
+    applyPreferLocal(result, cwdPath);
+  }
+  if (addExecPath) {
+    applyExecPath(result, execPath, cwdPath);
+  }
+  return [...result, pathOption].join(path.delimiter);
+}, applyPreferLocal = (result, cwdPath) => {
+  let previous;
+  while (previous !== cwdPath) {
+    result.push(path.join(cwdPath, "node_modules/.bin"));
+    previous = cwdPath;
+    cwdPath = path.resolve(cwdPath, "..");
+  }
+}, applyExecPath = (result, execPath, cwdPath) => {
+  const execPathString = execPath instanceof URL ? fileURLToPath(execPath) : execPath;
+  result.push(path.resolve(cwdPath, execPathString, ".."));
+}, npmRunPathEnv = ({ env: env3 = process14.env, ...options } = {}) => {
+  env3 = { ...env3 };
+  const pathName = pathKey({ env: env3 });
+  options.path = env3[pathName];
+  env3[pathName] = npmRunPath(options);
+  return env3;
+};
+var init_npm_run_path = () => {};
+
+// node_modules/mimic-fn/index.js
+function mimicFunction(to, from, { ignoreNonConfigurable = false } = {}) {
+  const { name } = to;
+  for (const property of Reflect.ownKeys(from)) {
+    copyProperty(to, from, property, ignoreNonConfigurable);
+  }
+  changePrototype(to, from);
+  changeToString(to, from, name);
+  return to;
+}
+var copyProperty = (to, from, property, ignoreNonConfigurable) => {
+  if (property === "length" || property === "prototype") {
+    return;
+  }
+  if (property === "arguments" || property === "caller") {
+    return;
+  }
+  const toDescriptor = Object.getOwnPropertyDescriptor(to, property);
+  const fromDescriptor = Object.getOwnPropertyDescriptor(from, property);
+  if (!canCopyProperty(toDescriptor, fromDescriptor) && ignoreNonConfigurable) {
+    return;
+  }
+  Object.defineProperty(to, property, fromDescriptor);
+}, canCopyProperty = function(toDescriptor, fromDescriptor) {
+  return toDescriptor === undefined || toDescriptor.configurable || toDescriptor.writable === fromDescriptor.writable && toDescriptor.enumerable === fromDescriptor.enumerable && toDescriptor.configurable === fromDescriptor.configurable && (toDescriptor.writable || toDescriptor.value === fromDescriptor.value);
+}, changePrototype = (to, from) => {
+  const fromPrototype = Object.getPrototypeOf(from);
+  if (fromPrototype === Object.getPrototypeOf(to)) {
+    return;
+  }
+  Object.setPrototypeOf(to, fromPrototype);
+}, wrappedToString = (withName, fromBody) => `/* Wrapped ${withName}*/
+${fromBody}`, toStringDescriptor, toStringName, changeToString = (to, from, name) => {
+  const withName = name === "" ? "" : `with ${name.trim()}() `;
+  const newToString = wrappedToString.bind(null, withName, from.toString());
+  Object.defineProperty(newToString, "name", toStringName);
+  Object.defineProperty(to, "toString", { ...toStringDescriptor, value: newToString });
+};
+var init_mimic_fn = __esm(() => {
+  toStringDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, "toString");
+  toStringName = Object.getOwnPropertyDescriptor(Function.prototype.toString, "name");
+});
+
+// node_modules/onetime/index.js
+var calledFunctions, onetime2 = (function_, options = {}) => {
+  if (typeof function_ !== "function") {
+    throw new TypeError("Expected a function");
+  }
+  let returnValue;
+  let callCount = 0;
+  const functionName = function_.displayName || function_.name || "<anonymous>";
+  const onetime3 = function(...arguments_) {
+    calledFunctions.set(onetime3, ++callCount);
+    if (callCount === 1) {
+      returnValue = function_.apply(this, arguments_);
+      function_ = null;
+    } else if (options.throw === true) {
+      throw new Error(`Function \`${functionName}\` can only be called once`);
+    }
+    return returnValue;
+  };
+  mimicFunction(onetime3, function_);
+  calledFunctions.set(onetime3, callCount);
+  return onetime3;
+}, onetime_default;
+var init_onetime = __esm(() => {
+  init_mimic_fn();
+  calledFunctions = new WeakMap;
+  onetime2.callCount = (function_) => {
+    if (!calledFunctions.has(function_)) {
+      throw new Error(`The given function \`${function_.name}\` is not wrapped by the \`onetime\` package`);
+    }
+    return calledFunctions.get(function_);
+  };
+  onetime_default = onetime2;
+});
+
+// node_modules/human-signals/build/src/realtime.js
+var getRealtimeSignals = () => {
+  const length = SIGRTMAX - SIGRTMIN + 1;
+  return Array.from({ length }, getRealtimeSignal);
+}, getRealtimeSignal = (value, index) => ({
+  name: `SIGRT${index + 1}`,
+  number: SIGRTMIN + index,
+  action: "terminate",
+  description: "Application-specific signal (realtime)",
+  standard: "posix"
+}), SIGRTMIN = 34, SIGRTMAX = 64;
+
+// node_modules/human-signals/build/src/core.js
+var SIGNALS;
+var init_core = __esm(() => {
+  SIGNALS = [
+    {
+      name: "SIGHUP",
+      number: 1,
+      action: "terminate",
+      description: "Terminal closed",
+      standard: "posix"
+    },
+    {
+      name: "SIGINT",
+      number: 2,
+      action: "terminate",
+      description: "User interruption with CTRL-C",
+      standard: "ansi"
+    },
+    {
+      name: "SIGQUIT",
+      number: 3,
+      action: "core",
+      description: "User interruption with CTRL-\\",
+      standard: "posix"
+    },
+    {
+      name: "SIGILL",
+      number: 4,
+      action: "core",
+      description: "Invalid machine instruction",
+      standard: "ansi"
+    },
+    {
+      name: "SIGTRAP",
+      number: 5,
+      action: "core",
+      description: "Debugger breakpoint",
+      standard: "posix"
+    },
+    {
+      name: "SIGABRT",
+      number: 6,
+      action: "core",
+      description: "Aborted",
+      standard: "ansi"
+    },
+    {
+      name: "SIGIOT",
+      number: 6,
+      action: "core",
+      description: "Aborted",
+      standard: "bsd"
+    },
+    {
+      name: "SIGBUS",
+      number: 7,
+      action: "core",
+      description: "Bus error due to misaligned, non-existing address or paging error",
+      standard: "bsd"
+    },
+    {
+      name: "SIGEMT",
+      number: 7,
+      action: "terminate",
+      description: "Command should be emulated but is not implemented",
+      standard: "other"
+    },
+    {
+      name: "SIGFPE",
+      number: 8,
+      action: "core",
+      description: "Floating point arithmetic error",
+      standard: "ansi"
+    },
+    {
+      name: "SIGKILL",
+      number: 9,
+      action: "terminate",
+      description: "Forced termination",
+      standard: "posix",
+      forced: true
+    },
+    {
+      name: "SIGUSR1",
+      number: 10,
+      action: "terminate",
+      description: "Application-specific signal",
+      standard: "posix"
+    },
+    {
+      name: "SIGSEGV",
+      number: 11,
+      action: "core",
+      description: "Segmentation fault",
+      standard: "ansi"
+    },
+    {
+      name: "SIGUSR2",
+      number: 12,
+      action: "terminate",
+      description: "Application-specific signal",
+      standard: "posix"
+    },
+    {
+      name: "SIGPIPE",
+      number: 13,
+      action: "terminate",
+      description: "Broken pipe or socket",
+      standard: "posix"
+    },
+    {
+      name: "SIGALRM",
+      number: 14,
+      action: "terminate",
+      description: "Timeout or timer",
+      standard: "posix"
+    },
+    {
+      name: "SIGTERM",
+      number: 15,
+      action: "terminate",
+      description: "Termination",
+      standard: "ansi"
+    },
+    {
+      name: "SIGSTKFLT",
+      number: 16,
+      action: "terminate",
+      description: "Stack is empty or overflowed",
+      standard: "other"
+    },
+    {
+      name: "SIGCHLD",
+      number: 17,
+      action: "ignore",
+      description: "Child process terminated, paused or unpaused",
+      standard: "posix"
+    },
+    {
+      name: "SIGCLD",
+      number: 17,
+      action: "ignore",
+      description: "Child process terminated, paused or unpaused",
+      standard: "other"
+    },
+    {
+      name: "SIGCONT",
+      number: 18,
+      action: "unpause",
+      description: "Unpaused",
+      standard: "posix",
+      forced: true
+    },
+    {
+      name: "SIGSTOP",
+      number: 19,
+      action: "pause",
+      description: "Paused",
+      standard: "posix",
+      forced: true
+    },
+    {
+      name: "SIGTSTP",
+      number: 20,
+      action: "pause",
+      description: 'Paused using CTRL-Z or "suspend"',
+      standard: "posix"
+    },
+    {
+      name: "SIGTTIN",
+      number: 21,
+      action: "pause",
+      description: "Background process cannot read terminal input",
+      standard: "posix"
+    },
+    {
+      name: "SIGBREAK",
+      number: 21,
+      action: "terminate",
+      description: "User interruption with CTRL-BREAK",
+      standard: "other"
+    },
+    {
+      name: "SIGTTOU",
+      number: 22,
+      action: "pause",
+      description: "Background process cannot write to terminal output",
+      standard: "posix"
+    },
+    {
+      name: "SIGURG",
+      number: 23,
+      action: "ignore",
+      description: "Socket received out-of-band data",
+      standard: "bsd"
+    },
+    {
+      name: "SIGXCPU",
+      number: 24,
+      action: "core",
+      description: "Process timed out",
+      standard: "bsd"
+    },
+    {
+      name: "SIGXFSZ",
+      number: 25,
+      action: "core",
+      description: "File too big",
+      standard: "bsd"
+    },
+    {
+      name: "SIGVTALRM",
+      number: 26,
+      action: "terminate",
+      description: "Timeout or timer",
+      standard: "bsd"
+    },
+    {
+      name: "SIGPROF",
+      number: 27,
+      action: "terminate",
+      description: "Timeout or timer",
+      standard: "bsd"
+    },
+    {
+      name: "SIGWINCH",
+      number: 28,
+      action: "ignore",
+      description: "Terminal window size changed",
+      standard: "bsd"
+    },
+    {
+      name: "SIGIO",
+      number: 29,
+      action: "terminate",
+      description: "I/O is available",
+      standard: "other"
+    },
+    {
+      name: "SIGPOLL",
+      number: 29,
+      action: "terminate",
+      description: "Watched event",
+      standard: "other"
+    },
+    {
+      name: "SIGINFO",
+      number: 29,
+      action: "ignore",
+      description: "Request for process information",
+      standard: "other"
+    },
+    {
+      name: "SIGPWR",
+      number: 30,
+      action: "terminate",
+      description: "Device running out of power",
+      standard: "systemv"
+    },
+    {
+      name: "SIGSYS",
+      number: 31,
+      action: "core",
+      description: "Invalid system call",
+      standard: "other"
+    },
+    {
+      name: "SIGUNUSED",
+      number: 31,
+      action: "terminate",
+      description: "Invalid system call",
+      standard: "other"
+    }
+  ];
+});
+
+// node_modules/human-signals/build/src/signals.js
+import { constants as constants2 } from "os";
+var getSignals = () => {
+  const realtimeSignals = getRealtimeSignals();
+  const signals = [...SIGNALS, ...realtimeSignals].map(normalizeSignal);
+  return signals;
+}, normalizeSignal = ({
+  name,
+  number: defaultNumber,
+  description,
+  action,
+  forced = false,
+  standard
+}) => {
+  const {
+    signals: { [name]: constantSignal }
+  } = constants2;
+  const supported = constantSignal !== undefined;
+  const number = supported ? constantSignal : defaultNumber;
+  return { name, number, description, supported, action, forced, standard };
+};
+var init_signals = __esm(() => {
+  init_core();
+});
+
+// node_modules/human-signals/build/src/main.js
+import { constants as constants3 } from "os";
+var getSignalsByName = () => {
+  const signals = getSignals();
+  return Object.fromEntries(signals.map(getSignalByName));
+}, getSignalByName = ({
+  name,
+  number,
+  description,
+  supported,
+  action,
+  forced,
+  standard
+}) => [name, { name, number, description, supported, action, forced, standard }], signalsByName, getSignalsByNumber = () => {
+  const signals = getSignals();
+  const length = SIGRTMAX + 1;
+  const signalsA = Array.from({ length }, (value, number) => getSignalByNumber(number, signals));
+  return Object.assign({}, ...signalsA);
+}, getSignalByNumber = (number, signals) => {
+  const signal = findSignalByNumber(number, signals);
+  if (signal === undefined) {
+    return {};
+  }
+  const { name, description, supported, action, forced, standard } = signal;
+  return {
+    [number]: {
+      name,
+      number,
+      description,
+      supported,
+      action,
+      forced,
+      standard
+    }
+  };
+}, findSignalByNumber = (number, signals) => {
+  const signal = signals.find(({ name }) => constants3.signals[name] === number);
+  if (signal !== undefined) {
+    return signal;
+  }
+  return signals.find((signalA) => signalA.number === number);
+}, signalsByNumber;
+var init_main = __esm(() => {
+  init_signals();
+  signalsByName = getSignalsByName();
+  signalsByNumber = getSignalsByNumber();
+});
+
+// node_modules/execa/lib/error.js
+import process15 from "process";
+var getErrorPrefix = ({ timedOut, timeout, errorCode, signal, signalDescription, exitCode, isCanceled }) => {
+  if (timedOut) {
+    return `timed out after ${timeout} milliseconds`;
+  }
+  if (isCanceled) {
+    return "was canceled";
+  }
+  if (errorCode !== undefined) {
+    return `failed with ${errorCode}`;
+  }
+  if (signal !== undefined) {
+    return `was killed with ${signal} (${signalDescription})`;
+  }
+  if (exitCode !== undefined) {
+    return `failed with exit code ${exitCode}`;
+  }
+  return "failed";
+}, makeError = ({
+  stdout,
+  stderr,
+  all,
+  error,
+  signal,
+  exitCode,
+  command,
+  escapedCommand,
+  timedOut,
+  isCanceled,
+  killed,
+  parsed: { options: { timeout, cwd: cwd2 = process15.cwd() } }
+}) => {
+  exitCode = exitCode === null ? undefined : exitCode;
+  signal = signal === null ? undefined : signal;
+  const signalDescription = signal === undefined ? undefined : signalsByName[signal].description;
+  const errorCode = error && error.code;
+  const prefix = getErrorPrefix({ timedOut, timeout, errorCode, signal, signalDescription, exitCode, isCanceled });
+  const execaMessage = `Command ${prefix}: ${command}`;
+  const isError = Object.prototype.toString.call(error) === "[object Error]";
+  const shortMessage = isError ? `${execaMessage}
+${error.message}` : execaMessage;
+  const message = [shortMessage, stderr, stdout].filter(Boolean).join(`
+`);
+  if (isError) {
+    error.originalMessage = error.message;
+    error.message = message;
+  } else {
+    error = new Error(message);
+  }
+  error.shortMessage = shortMessage;
+  error.command = command;
+  error.escapedCommand = escapedCommand;
+  error.exitCode = exitCode;
+  error.signal = signal;
+  error.signalDescription = signalDescription;
+  error.stdout = stdout;
+  error.stderr = stderr;
+  error.cwd = cwd2;
+  if (all !== undefined) {
+    error.all = all;
+  }
+  if ("bufferedData" in error) {
+    delete error.bufferedData;
+  }
+  error.failed = true;
+  error.timedOut = Boolean(timedOut);
+  error.isCanceled = isCanceled;
+  error.killed = killed && !timedOut;
+  return error;
+};
+var init_error = __esm(() => {
+  init_main();
+});
+
+// node_modules/execa/lib/stdio.js
+var aliases, hasAlias = (options) => aliases.some((alias) => options[alias] !== undefined), normalizeStdio = (options) => {
+  if (!options) {
+    return;
+  }
+  const { stdio } = options;
+  if (stdio === undefined) {
+    return aliases.map((alias) => options[alias]);
+  }
+  if (hasAlias(options)) {
+    throw new Error(`It's not possible to provide \`stdio\` in combination with one of ${aliases.map((alias) => `\`${alias}\``).join(", ")}`);
+  }
+  if (typeof stdio === "string") {
+    return stdio;
+  }
+  if (!Array.isArray(stdio)) {
+    throw new TypeError(`Expected \`stdio\` to be of type \`string\` or \`Array\`, got \`${typeof stdio}\``);
+  }
+  const length = Math.max(stdio.length, aliases.length);
+  return Array.from({ length }, (value, index) => stdio[index]);
+};
+var init_stdio = __esm(() => {
+  aliases = ["stdin", "stdout", "stderr"];
+});
+
+// node_modules/execa/node_modules/signal-exit/dist/mjs/signals.js
+var signals;
+var init_signals2 = __esm(() => {
+  signals = [];
+  signals.push("SIGHUP", "SIGINT", "SIGTERM");
+  if (process.platform !== "win32") {
+    signals.push("SIGALRM", "SIGABRT", "SIGVTALRM", "SIGXCPU", "SIGXFSZ", "SIGUSR2", "SIGTRAP", "SIGSYS", "SIGQUIT", "SIGIOT");
+  }
+  if (process.platform === "linux") {
+    signals.push("SIGIO", "SIGPOLL", "SIGPWR", "SIGSTKFLT");
+  }
+});
+
+// node_modules/execa/node_modules/signal-exit/dist/mjs/index.js
+class Emitter {
+  emitted = {
+    afterExit: false,
+    exit: false
+  };
+  listeners = {
+    afterExit: [],
+    exit: []
+  };
+  count = 0;
+  id = Math.random();
+  constructor() {
+    if (global2[kExitEmitter]) {
+      return global2[kExitEmitter];
+    }
+    ObjectDefineProperty(global2, kExitEmitter, {
+      value: this,
+      writable: false,
+      enumerable: false,
+      configurable: false
+    });
+  }
+  on(ev, fn) {
+    this.listeners[ev].push(fn);
+  }
+  removeListener(ev, fn) {
+    const list = this.listeners[ev];
+    const i = list.indexOf(fn);
+    if (i === -1) {
+      return;
+    }
+    if (i === 0 && list.length === 1) {
+      list.length = 0;
+    } else {
+      list.splice(i, 1);
+    }
+  }
+  emit(ev, code, signal) {
+    if (this.emitted[ev]) {
+      return false;
+    }
+    this.emitted[ev] = true;
+    let ret = false;
+    for (const fn of this.listeners[ev]) {
+      ret = fn(code, signal) === true || ret;
+    }
+    if (ev === "exit") {
+      ret = this.emit("afterExit", code, signal) || ret;
+    }
+    return ret;
+  }
+}
+
+class SignalExitBase {
+}
+var processOk = (process16) => !!process16 && typeof process16 === "object" && typeof process16.removeListener === "function" && typeof process16.emit === "function" && typeof process16.reallyExit === "function" && typeof process16.listeners === "function" && typeof process16.kill === "function" && typeof process16.pid === "number" && typeof process16.on === "function", kExitEmitter, global2, ObjectDefineProperty, signalExitWrap = (handler) => {
+  return {
+    onExit(cb, opts) {
+      return handler.onExit(cb, opts);
+    },
+    load() {
+      return handler.load();
+    },
+    unload() {
+      return handler.unload();
+    }
+  };
+}, SignalExitFallback, SignalExit, process16, onExit, load, unload;
+var init_mjs = __esm(() => {
+  init_signals2();
+  kExitEmitter = Symbol.for("signal-exit emitter");
+  global2 = globalThis;
+  ObjectDefineProperty = Object.defineProperty.bind(Object);
+  SignalExitFallback = class SignalExitFallback extends SignalExitBase {
+    onExit() {
+      return () => {};
+    }
+    load() {}
+    unload() {}
+  };
+  SignalExit = class SignalExit extends SignalExitBase {
+    #hupSig = process16.platform === "win32" ? "SIGINT" : "SIGHUP";
+    #emitter = new Emitter;
+    #process;
+    #originalProcessEmit;
+    #originalProcessReallyExit;
+    #sigListeners = {};
+    #loaded = false;
+    constructor(process16) {
+      super();
+      this.#process = process16;
+      this.#sigListeners = {};
+      for (const sig of signals) {
+        this.#sigListeners[sig] = () => {
+          const listeners = this.#process.listeners(sig);
+          let { count } = this.#emitter;
+          const p = process16;
+          if (typeof p.__signal_exit_emitter__ === "object" && typeof p.__signal_exit_emitter__.count === "number") {
+            count += p.__signal_exit_emitter__.count;
+          }
+          if (listeners.length === count) {
+            this.unload();
+            const ret = this.#emitter.emit("exit", null, sig);
+            const s = sig === "SIGHUP" ? this.#hupSig : sig;
+            if (!ret)
+              process16.kill(process16.pid, s);
+          }
+        };
+      }
+      this.#originalProcessReallyExit = process16.reallyExit;
+      this.#originalProcessEmit = process16.emit;
+    }
+    onExit(cb, opts) {
+      if (!processOk(this.#process)) {
+        return () => {};
+      }
+      if (this.#loaded === false) {
+        this.load();
+      }
+      const ev = opts?.alwaysLast ? "afterExit" : "exit";
+      this.#emitter.on(ev, cb);
+      return () => {
+        this.#emitter.removeListener(ev, cb);
+        if (this.#emitter.listeners["exit"].length === 0 && this.#emitter.listeners["afterExit"].length === 0) {
+          this.unload();
+        }
+      };
+    }
+    load() {
+      if (this.#loaded) {
+        return;
+      }
+      this.#loaded = true;
+      this.#emitter.count += 1;
+      for (const sig of signals) {
+        try {
+          const fn = this.#sigListeners[sig];
+          if (fn)
+            this.#process.on(sig, fn);
+        } catch (_) {}
+      }
+      this.#process.emit = (ev, ...a) => {
+        return this.#processEmit(ev, ...a);
+      };
+      this.#process.reallyExit = (code) => {
+        return this.#processReallyExit(code);
+      };
+    }
+    unload() {
+      if (!this.#loaded) {
+        return;
+      }
+      this.#loaded = false;
+      signals.forEach((sig) => {
+        const listener = this.#sigListeners[sig];
+        if (!listener) {
+          throw new Error("Listener not defined for signal: " + sig);
+        }
+        try {
+          this.#process.removeListener(sig, listener);
+        } catch (_) {}
+      });
+      this.#process.emit = this.#originalProcessEmit;
+      this.#process.reallyExit = this.#originalProcessReallyExit;
+      this.#emitter.count -= 1;
+    }
+    #processReallyExit(code) {
+      if (!processOk(this.#process)) {
+        return 0;
+      }
+      this.#process.exitCode = code || 0;
+      this.#emitter.emit("exit", this.#process.exitCode, null);
+      return this.#originalProcessReallyExit.call(this.#process, this.#process.exitCode);
+    }
+    #processEmit(ev, ...args) {
+      const og = this.#originalProcessEmit;
+      if (ev === "exit" && processOk(this.#process)) {
+        if (typeof args[0] === "number") {
+          this.#process.exitCode = args[0];
+        }
+        const ret = og.call(this.#process, ev, ...args);
+        this.#emitter.emit("exit", this.#process.exitCode, null);
+        return ret;
+      } else {
+        return og.call(this.#process, ev, ...args);
+      }
+    }
+  };
+  process16 = globalThis.process;
+  ({
+    onExit,
+    load,
+    unload
+  } = signalExitWrap(processOk(process16) ? new SignalExit(process16) : new SignalExitFallback));
+});
+
+// node_modules/execa/lib/kill.js
+import os4 from "os";
+var DEFAULT_FORCE_KILL_TIMEOUT, spawnedKill = (kill, signal = "SIGTERM", options = {}) => {
+  const killResult = kill(signal);
+  setKillTimeout(kill, signal, options, killResult);
+  return killResult;
+}, setKillTimeout = (kill, signal, options, killResult) => {
+  if (!shouldForceKill(signal, options, killResult)) {
+    return;
+  }
+  const timeout = getForceKillAfterTimeout(options);
+  const t = setTimeout(() => {
+    kill("SIGKILL");
+  }, timeout);
+  if (t.unref) {
+    t.unref();
+  }
+}, shouldForceKill = (signal, { forceKillAfterTimeout }, killResult) => isSigterm(signal) && forceKillAfterTimeout !== false && killResult, isSigterm = (signal) => signal === os4.constants.signals.SIGTERM || typeof signal === "string" && signal.toUpperCase() === "SIGTERM", getForceKillAfterTimeout = ({ forceKillAfterTimeout = true }) => {
+  if (forceKillAfterTimeout === true) {
+    return DEFAULT_FORCE_KILL_TIMEOUT;
+  }
+  if (!Number.isFinite(forceKillAfterTimeout) || forceKillAfterTimeout < 0) {
+    throw new TypeError(`Expected the \`forceKillAfterTimeout\` option to be a non-negative integer, got \`${forceKillAfterTimeout}\` (${typeof forceKillAfterTimeout})`);
+  }
+  return forceKillAfterTimeout;
+}, spawnedCancel = (spawned, context) => {
+  const killResult = spawned.kill();
+  if (killResult) {
+    context.isCanceled = true;
+  }
+}, timeoutKill = (spawned, signal, reject) => {
+  spawned.kill(signal);
+  reject(Object.assign(new Error("Timed out"), { timedOut: true, signal }));
+}, setupTimeout = (spawned, { timeout, killSignal = "SIGTERM" }, spawnedPromise) => {
+  if (timeout === 0 || timeout === undefined) {
+    return spawnedPromise;
+  }
+  let timeoutId;
+  const timeoutPromise = new Promise((resolve, reject) => {
+    timeoutId = setTimeout(() => {
+      timeoutKill(spawned, killSignal, reject);
+    }, timeout);
+  });
+  const safeSpawnedPromise = spawnedPromise.finally(() => {
+    clearTimeout(timeoutId);
+  });
+  return Promise.race([timeoutPromise, safeSpawnedPromise]);
+}, validateTimeout = ({ timeout }) => {
+  if (timeout !== undefined && (!Number.isFinite(timeout) || timeout < 0)) {
+    throw new TypeError(`Expected the \`timeout\` option to be a non-negative integer, got \`${timeout}\` (${typeof timeout})`);
+  }
+}, setExitHandler = async (spawned, { cleanup, detached }, timedPromise) => {
+  if (!cleanup || detached) {
+    return timedPromise;
+  }
+  const removeExitHandler = onExit(() => {
+    spawned.kill();
+  });
+  return timedPromise.finally(() => {
+    removeExitHandler();
+  });
+};
+var init_kill = __esm(() => {
+  init_mjs();
+  DEFAULT_FORCE_KILL_TIMEOUT = 1000 * 5;
+});
+
+// node_modules/is-stream/index.js
+function isStream(stream) {
+  return stream !== null && typeof stream === "object" && typeof stream.pipe === "function";
+}
+function isWritableStream(stream) {
+  return isStream(stream) && stream.writable !== false && typeof stream._write === "function" && typeof stream._writableState === "object";
+}
+
+// node_modules/execa/lib/pipe.js
+import { createWriteStream } from "fs";
+import { ChildProcess } from "child_process";
+var isExecaChildProcess = (target) => target instanceof ChildProcess && typeof target.then === "function", pipeToTarget = (spawned, streamName, target) => {
+  if (typeof target === "string") {
+    spawned[streamName].pipe(createWriteStream(target));
+    return spawned;
+  }
+  if (isWritableStream(target)) {
+    spawned[streamName].pipe(target);
+    return spawned;
+  }
+  if (!isExecaChildProcess(target)) {
+    throw new TypeError("The second argument must be a string, a stream or an Execa child process.");
+  }
+  if (!isWritableStream(target.stdin)) {
+    throw new TypeError("The target child process's stdin must be available.");
+  }
+  spawned[streamName].pipe(target.stdin);
+  return target;
+}, addPipeMethods = (spawned) => {
+  if (spawned.stdout !== null) {
+    spawned.pipeStdout = pipeToTarget.bind(undefined, spawned, "stdout");
+  }
+  if (spawned.stderr !== null) {
+    spawned.pipeStderr = pipeToTarget.bind(undefined, spawned, "stderr");
+  }
+  if (spawned.all !== undefined) {
+    spawned.pipeAll = pipeToTarget.bind(undefined, spawned, "all");
+  }
+};
+var init_pipe = () => {};
+
+// node_modules/get-stream/source/contents.js
+var getStreamContents = async (stream, { init, convertChunk, getSize, truncateChunk, addChunk, getFinalChunk, finalize }, { maxBuffer = Number.POSITIVE_INFINITY } = {}) => {
+  if (!isAsyncIterable(stream)) {
+    throw new Error("The first argument must be a Readable, a ReadableStream, or an async iterable.");
+  }
+  const state = init();
+  state.length = 0;
+  try {
+    for await (const chunk of stream) {
+      const chunkType = getChunkType(chunk);
+      const convertedChunk = convertChunk[chunkType](chunk, state);
+      appendChunk({ convertedChunk, state, getSize, truncateChunk, addChunk, maxBuffer });
+    }
+    appendFinalChunk({ state, convertChunk, getSize, truncateChunk, addChunk, getFinalChunk, maxBuffer });
+    return finalize(state);
+  } catch (error) {
+    error.bufferedData = finalize(state);
+    throw error;
+  }
+}, appendFinalChunk = ({ state, getSize, truncateChunk, addChunk, getFinalChunk, maxBuffer }) => {
+  const convertedChunk = getFinalChunk(state);
+  if (convertedChunk !== undefined) {
+    appendChunk({ convertedChunk, state, getSize, truncateChunk, addChunk, maxBuffer });
+  }
+}, appendChunk = ({ convertedChunk, state, getSize, truncateChunk, addChunk, maxBuffer }) => {
+  const chunkSize = getSize(convertedChunk);
+  const newLength = state.length + chunkSize;
+  if (newLength <= maxBuffer) {
+    addNewChunk(convertedChunk, state, addChunk, newLength);
+    return;
+  }
+  const truncatedChunk = truncateChunk(convertedChunk, maxBuffer - state.length);
+  if (truncatedChunk !== undefined) {
+    addNewChunk(truncatedChunk, state, addChunk, maxBuffer);
+  }
+  throw new MaxBufferError;
+}, addNewChunk = (convertedChunk, state, addChunk, newLength) => {
+  state.contents = addChunk(convertedChunk, state, newLength);
+  state.length = newLength;
+}, isAsyncIterable = (stream) => typeof stream === "object" && stream !== null && typeof stream[Symbol.asyncIterator] === "function", getChunkType = (chunk) => {
+  const typeOfChunk = typeof chunk;
+  if (typeOfChunk === "string") {
+    return "string";
+  }
+  if (typeOfChunk !== "object" || chunk === null) {
+    return "others";
+  }
+  if (globalThis.Buffer?.isBuffer(chunk)) {
+    return "buffer";
+  }
+  const prototypeName = objectToString.call(chunk);
+  if (prototypeName === "[object ArrayBuffer]") {
+    return "arrayBuffer";
+  }
+  if (prototypeName === "[object DataView]") {
+    return "dataView";
+  }
+  if (Number.isInteger(chunk.byteLength) && Number.isInteger(chunk.byteOffset) && objectToString.call(chunk.buffer) === "[object ArrayBuffer]") {
+    return "typedArray";
+  }
+  return "others";
+}, objectToString, MaxBufferError;
+var init_contents = __esm(() => {
+  ({ toString: objectToString } = Object.prototype);
+  MaxBufferError = class MaxBufferError extends Error {
+    name = "MaxBufferError";
+    constructor() {
+      super("maxBuffer exceeded");
+    }
+  };
+});
+
+// node_modules/get-stream/source/utils.js
+var identity = (value) => value, noop2 = () => {
+  return;
+}, getContentsProp = ({ contents }) => contents, throwObjectStream = (chunk) => {
+  throw new Error(`Streams in object mode are not supported: ${String(chunk)}`);
+}, getLengthProp = (convertedChunk) => convertedChunk.length;
+
+// node_modules/get-stream/source/array.js
+var init_array = __esm(() => {
+  init_contents();
+});
+
+// node_modules/get-stream/source/array-buffer.js
+async function getStreamAsArrayBuffer(stream, options) {
+  return getStreamContents(stream, arrayBufferMethods, options);
+}
+var initArrayBuffer = () => ({ contents: new ArrayBuffer(0) }), useTextEncoder = (chunk) => textEncoder.encode(chunk), textEncoder, useUint8Array = (chunk) => new Uint8Array(chunk), useUint8ArrayWithOffset = (chunk) => new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength), truncateArrayBufferChunk = (convertedChunk, chunkSize) => convertedChunk.slice(0, chunkSize), addArrayBufferChunk = (convertedChunk, { contents, length: previousLength }, length) => {
+  const newContents = hasArrayBufferResize() ? resizeArrayBuffer(contents, length) : resizeArrayBufferSlow(contents, length);
+  new Uint8Array(newContents).set(convertedChunk, previousLength);
+  return newContents;
+}, resizeArrayBufferSlow = (contents, length) => {
+  if (length <= contents.byteLength) {
+    return contents;
+  }
+  const arrayBuffer = new ArrayBuffer(getNewContentsLength(length));
+  new Uint8Array(arrayBuffer).set(new Uint8Array(contents), 0);
+  return arrayBuffer;
+}, resizeArrayBuffer = (contents, length) => {
+  if (length <= contents.maxByteLength) {
+    contents.resize(length);
+    return contents;
+  }
+  const arrayBuffer = new ArrayBuffer(length, { maxByteLength: getNewContentsLength(length) });
+  new Uint8Array(arrayBuffer).set(new Uint8Array(contents), 0);
+  return arrayBuffer;
+}, getNewContentsLength = (length) => SCALE_FACTOR ** Math.ceil(Math.log(length) / Math.log(SCALE_FACTOR)), SCALE_FACTOR = 2, finalizeArrayBuffer = ({ contents, length }) => hasArrayBufferResize() ? contents : contents.slice(0, length), hasArrayBufferResize = () => ("resize" in ArrayBuffer.prototype), arrayBufferMethods;
+var init_array_buffer = __esm(() => {
+  init_contents();
+  textEncoder = new TextEncoder;
+  arrayBufferMethods = {
+    init: initArrayBuffer,
+    convertChunk: {
+      string: useTextEncoder,
+      buffer: useUint8Array,
+      arrayBuffer: useUint8Array,
+      dataView: useUint8ArrayWithOffset,
+      typedArray: useUint8ArrayWithOffset,
+      others: throwObjectStream
+    },
+    getSize: getLengthProp,
+    truncateChunk: truncateArrayBufferChunk,
+    addChunk: addArrayBufferChunk,
+    getFinalChunk: noop2,
+    finalize: finalizeArrayBuffer
+  };
+});
+
+// node_modules/get-stream/source/buffer.js
+async function getStreamAsBuffer(stream, options) {
+  if (!("Buffer" in globalThis)) {
+    throw new Error("getStreamAsBuffer() is only supported in Node.js");
+  }
+  try {
+    return arrayBufferToNodeBuffer(await getStreamAsArrayBuffer(stream, options));
+  } catch (error) {
+    if (error.bufferedData !== undefined) {
+      error.bufferedData = arrayBufferToNodeBuffer(error.bufferedData);
+    }
+    throw error;
+  }
+}
+var arrayBufferToNodeBuffer = (arrayBuffer) => globalThis.Buffer.from(arrayBuffer);
+var init_buffer = __esm(() => {
+  init_array_buffer();
+});
+
+// node_modules/get-stream/source/string.js
+async function getStreamAsString(stream, options) {
+  return getStreamContents(stream, stringMethods, options);
+}
+var initString = () => ({ contents: "", textDecoder: new TextDecoder }), useTextDecoder = (chunk, { textDecoder }) => textDecoder.decode(chunk, { stream: true }), addStringChunk = (convertedChunk, { contents }) => contents + convertedChunk, truncateStringChunk = (convertedChunk, chunkSize) => convertedChunk.slice(0, chunkSize), getFinalStringChunk = ({ textDecoder }) => {
+  const finalChunk = textDecoder.decode();
+  return finalChunk === "" ? undefined : finalChunk;
+}, stringMethods;
+var init_string = __esm(() => {
+  init_contents();
+  stringMethods = {
+    init: initString,
+    convertChunk: {
+      string: identity,
+      buffer: useTextDecoder,
+      arrayBuffer: useTextDecoder,
+      dataView: useTextDecoder,
+      typedArray: useTextDecoder,
+      others: throwObjectStream
+    },
+    getSize: getLengthProp,
+    truncateChunk: truncateStringChunk,
+    addChunk: addStringChunk,
+    getFinalChunk: getFinalStringChunk,
+    finalize: getContentsProp
+  };
+});
+
+// node_modules/get-stream/source/index.js
+var init_source2 = __esm(() => {
+  init_array();
+  init_array_buffer();
+  init_buffer();
+  init_string();
+  init_contents();
+});
+
+// node_modules/merge-stream/index.js
+var require_merge_stream = __commonJS((exports, module) => {
+  var { PassThrough: PassThrough2 } = __require("stream");
+  module.exports = function() {
+    var sources = [];
+    var output = new PassThrough2({ objectMode: true });
+    output.setMaxListeners(0);
+    output.add = add;
+    output.isEmpty = isEmpty;
+    output.on("unpipe", remove);
+    Array.prototype.slice.call(arguments).forEach(add);
+    return output;
+    function add(source) {
+      if (Array.isArray(source)) {
+        source.forEach(add);
+        return this;
+      }
+      sources.push(source);
+      source.once("end", remove.bind(null, source));
+      source.once("error", output.emit.bind(output, "error"));
+      source.pipe(output, { end: false });
+      return this;
+    }
+    function isEmpty() {
+      return sources.length == 0;
+    }
+    function remove(source) {
+      sources = sources.filter(function(it) {
+        return it !== source;
+      });
+      if (!sources.length && output.readable) {
+        output.end();
+      }
+    }
+  };
+});
+
+// node_modules/execa/lib/stream.js
+import { createReadStream, readFileSync as readFileSync2 } from "fs";
+import { setTimeout as setTimeout2 } from "timers/promises";
+var import_merge_stream, validateInputOptions = (input) => {
+  if (input !== undefined) {
+    throw new TypeError("The `input` and `inputFile` options cannot be both set.");
+  }
+}, getInputSync = ({ input, inputFile }) => {
+  if (typeof inputFile !== "string") {
+    return input;
+  }
+  validateInputOptions(input);
+  return readFileSync2(inputFile);
+}, handleInputSync = (options) => {
+  const input = getInputSync(options);
+  if (isStream(input)) {
+    throw new TypeError("The `input` option cannot be a stream in sync mode");
+  }
+  return input;
+}, getInput = ({ input, inputFile }) => {
+  if (typeof inputFile !== "string") {
+    return input;
+  }
+  validateInputOptions(input);
+  return createReadStream(inputFile);
+}, handleInput = (spawned, options) => {
+  const input = getInput(options);
+  if (input === undefined) {
+    return;
+  }
+  if (isStream(input)) {
+    input.pipe(spawned.stdin);
+  } else {
+    spawned.stdin.end(input);
+  }
+}, makeAllStream = (spawned, { all }) => {
+  if (!all || !spawned.stdout && !spawned.stderr) {
+    return;
+  }
+  const mixed = import_merge_stream.default();
+  if (spawned.stdout) {
+    mixed.add(spawned.stdout);
+  }
+  if (spawned.stderr) {
+    mixed.add(spawned.stderr);
+  }
+  return mixed;
+}, getBufferedData = async (stream, streamPromise) => {
+  if (!stream || streamPromise === undefined) {
+    return;
+  }
+  await setTimeout2(0);
+  stream.destroy();
+  try {
+    return await streamPromise;
+  } catch (error) {
+    return error.bufferedData;
+  }
+}, getStreamPromise = (stream, { encoding, buffer, maxBuffer }) => {
+  if (!stream || !buffer) {
+    return;
+  }
+  if (encoding === "utf8" || encoding === "utf-8") {
+    return getStreamAsString(stream, { maxBuffer });
+  }
+  if (encoding === null || encoding === "buffer") {
+    return getStreamAsBuffer(stream, { maxBuffer });
+  }
+  return applyEncoding(stream, maxBuffer, encoding);
+}, applyEncoding = async (stream, maxBuffer, encoding) => {
+  const buffer = await getStreamAsBuffer(stream, { maxBuffer });
+  return buffer.toString(encoding);
+}, getSpawnedResult = async ({ stdout, stderr, all }, { encoding, buffer, maxBuffer }, processDone) => {
+  const stdoutPromise = getStreamPromise(stdout, { encoding, buffer, maxBuffer });
+  const stderrPromise = getStreamPromise(stderr, { encoding, buffer, maxBuffer });
+  const allPromise = getStreamPromise(all, { encoding, buffer, maxBuffer: maxBuffer * 2 });
+  try {
+    return await Promise.all([processDone, stdoutPromise, stderrPromise, allPromise]);
+  } catch (error) {
+    return Promise.all([
+      { error, signal: error.signal, timedOut: error.timedOut },
+      getBufferedData(stdout, stdoutPromise),
+      getBufferedData(stderr, stderrPromise),
+      getBufferedData(all, allPromise)
+    ]);
+  }
+};
+var init_stream = __esm(() => {
+  init_source2();
+  import_merge_stream = __toESM(require_merge_stream(), 1);
+});
+
+// node_modules/execa/lib/promise.js
+var nativePromisePrototype, descriptors, mergePromise = (spawned, promise) => {
+  for (const [property, descriptor] of descriptors) {
+    const value = typeof promise === "function" ? (...args) => Reflect.apply(descriptor.value, promise(), args) : descriptor.value.bind(promise);
+    Reflect.defineProperty(spawned, property, { ...descriptor, value });
+  }
+}, getSpawnedPromise = (spawned) => new Promise((resolve, reject) => {
+  spawned.on("exit", (exitCode, signal) => {
+    resolve({ exitCode, signal });
+  });
+  spawned.on("error", (error) => {
+    reject(error);
+  });
+  if (spawned.stdin) {
+    spawned.stdin.on("error", (error) => {
+      reject(error);
+    });
+  }
+});
+var init_promise = __esm(() => {
+  nativePromisePrototype = (async () => {})().constructor.prototype;
+  descriptors = ["then", "catch", "finally"].map((property) => [
+    property,
+    Reflect.getOwnPropertyDescriptor(nativePromisePrototype, property)
+  ]);
+});
+
+// node_modules/execa/lib/command.js
+import { Buffer as Buffer3 } from "buffer";
+import { ChildProcess as ChildProcess2 } from "child_process";
+var normalizeArgs = (file, args = []) => {
+  if (!Array.isArray(args)) {
+    return [file];
+  }
+  return [file, ...args];
+}, NO_ESCAPE_REGEXP, escapeArg = (arg) => {
+  if (typeof arg !== "string" || NO_ESCAPE_REGEXP.test(arg)) {
+    return arg;
+  }
+  return `"${arg.replaceAll('"', "\\\"")}"`;
+}, joinCommand = (file, args) => normalizeArgs(file, args).join(" "), getEscapedCommand = (file, args) => normalizeArgs(file, args).map((arg) => escapeArg(arg)).join(" "), SPACES_REGEXP, parseExpression = (expression) => {
+  const typeOfExpression = typeof expression;
+  if (typeOfExpression === "string") {
+    return expression;
+  }
+  if (typeOfExpression === "number") {
+    return String(expression);
+  }
+  if (typeOfExpression === "object" && expression !== null && !(expression instanceof ChildProcess2) && "stdout" in expression) {
+    const typeOfStdout = typeof expression.stdout;
+    if (typeOfStdout === "string") {
+      return expression.stdout;
+    }
+    if (Buffer3.isBuffer(expression.stdout)) {
+      return expression.stdout.toString();
+    }
+    throw new TypeError(`Unexpected "${typeOfStdout}" stdout in template expression`);
+  }
+  throw new TypeError(`Unexpected "${typeOfExpression}" in template expression`);
+}, concatTokens = (tokens, nextTokens, isNew) => isNew || tokens.length === 0 || nextTokens.length === 0 ? [...tokens, ...nextTokens] : [
+  ...tokens.slice(0, -1),
+  `${tokens.at(-1)}${nextTokens[0]}`,
+  ...nextTokens.slice(1)
+], parseTemplate = ({ templates, expressions, tokens, index, template }) => {
+  const templateString = template ?? templates.raw[index];
+  const templateTokens = templateString.split(SPACES_REGEXP).filter(Boolean);
+  const newTokens = concatTokens(tokens, templateTokens, templateString.startsWith(" "));
+  if (index === expressions.length) {
+    return newTokens;
+  }
+  const expression = expressions[index];
+  const expressionTokens = Array.isArray(expression) ? expression.map((expression2) => parseExpression(expression2)) : [parseExpression(expression)];
+  return concatTokens(newTokens, expressionTokens, templateString.endsWith(" "));
+}, parseTemplates = (templates, expressions) => {
+  let tokens = [];
+  for (const [index, template] of templates.entries()) {
+    tokens = parseTemplate({ templates, expressions, tokens, index, template });
+  }
+  return tokens;
+};
+var init_command = __esm(() => {
+  NO_ESCAPE_REGEXP = /^[\w.-]+$/;
+  SPACES_REGEXP = / +/g;
+});
+
+// node_modules/execa/lib/verbose.js
+import { debuglog } from "util";
+import process17 from "process";
+var verboseDefault, padField = (field, padding) => String(field).padStart(padding, "0"), getTimestamp = () => {
+  const date = new Date;
+  return `${padField(date.getHours(), 2)}:${padField(date.getMinutes(), 2)}:${padField(date.getSeconds(), 2)}.${padField(date.getMilliseconds(), 3)}`;
+}, logCommand = (escapedCommand, { verbose }) => {
+  if (!verbose) {
+    return;
+  }
+  process17.stderr.write(`[${getTimestamp()}] ${escapedCommand}
+`);
+};
+var init_verbose = __esm(() => {
+  verboseDefault = debuglog("execa").enabled;
+});
+
+// node_modules/execa/index.js
+import { Buffer as Buffer4 } from "buffer";
+import path2 from "path";
+import childProcess from "child_process";
+import process18 from "process";
+function execa(file, args, options) {
+  const parsed = handleArguments(file, args, options);
+  const command = joinCommand(file, args);
+  const escapedCommand = getEscapedCommand(file, args);
+  logCommand(escapedCommand, parsed.options);
+  validateTimeout(parsed.options);
+  let spawned;
+  try {
+    spawned = childProcess.spawn(parsed.file, parsed.args, parsed.options);
+  } catch (error) {
+    const dummySpawned = new childProcess.ChildProcess;
+    const errorPromise = Promise.reject(makeError({
+      error,
+      stdout: "",
+      stderr: "",
+      all: "",
+      command,
+      escapedCommand,
+      parsed,
+      timedOut: false,
+      isCanceled: false,
+      killed: false
+    }));
+    mergePromise(dummySpawned, errorPromise);
+    return dummySpawned;
+  }
+  const spawnedPromise = getSpawnedPromise(spawned);
+  const timedPromise = setupTimeout(spawned, parsed.options, spawnedPromise);
+  const processDone = setExitHandler(spawned, parsed.options, timedPromise);
+  const context = { isCanceled: false };
+  spawned.kill = spawnedKill.bind(null, spawned.kill.bind(spawned));
+  spawned.cancel = spawnedCancel.bind(null, spawned, context);
+  const handlePromise = async () => {
+    const [{ error, exitCode, signal, timedOut }, stdoutResult, stderrResult, allResult] = await getSpawnedResult(spawned, parsed.options, processDone);
+    const stdout = handleOutput(parsed.options, stdoutResult);
+    const stderr = handleOutput(parsed.options, stderrResult);
+    const all = handleOutput(parsed.options, allResult);
+    if (error || exitCode !== 0 || signal !== null) {
+      const returnedError = makeError({
+        error,
+        exitCode,
+        signal,
+        stdout,
+        stderr,
+        all,
+        command,
+        escapedCommand,
+        parsed,
+        timedOut,
+        isCanceled: context.isCanceled || (parsed.options.signal ? parsed.options.signal.aborted : false),
+        killed: spawned.killed
+      });
+      if (!parsed.options.reject) {
+        return returnedError;
+      }
+      throw returnedError;
+    }
+    return {
+      command,
+      escapedCommand,
+      exitCode: 0,
+      stdout,
+      stderr,
+      all,
+      failed: false,
+      timedOut: false,
+      isCanceled: false,
+      killed: false
+    };
+  };
+  const handlePromiseOnce = onetime_default(handlePromise);
+  handleInput(spawned, parsed.options);
+  spawned.all = makeAllStream(spawned, parsed.options);
+  addPipeMethods(spawned);
+  mergePromise(spawned, handlePromiseOnce);
+  return spawned;
+}
+function execaSync(file, args, options) {
+  const parsed = handleArguments(file, args, options);
+  const command = joinCommand(file, args);
+  const escapedCommand = getEscapedCommand(file, args);
+  logCommand(escapedCommand, parsed.options);
+  const input = handleInputSync(parsed.options);
+  let result;
+  try {
+    result = childProcess.spawnSync(parsed.file, parsed.args, { ...parsed.options, input });
+  } catch (error) {
+    throw makeError({
+      error,
+      stdout: "",
+      stderr: "",
+      all: "",
+      command,
+      escapedCommand,
+      parsed,
+      timedOut: false,
+      isCanceled: false,
+      killed: false
+    });
+  }
+  const stdout = handleOutput(parsed.options, result.stdout, result.error);
+  const stderr = handleOutput(parsed.options, result.stderr, result.error);
+  if (result.error || result.status !== 0 || result.signal !== null) {
+    const error = makeError({
+      stdout,
+      stderr,
+      error: result.error,
+      signal: result.signal,
+      exitCode: result.status,
+      command,
+      escapedCommand,
+      parsed,
+      timedOut: result.error && result.error.code === "ETIMEDOUT",
+      isCanceled: false,
+      killed: result.signal !== null
+    });
+    if (!parsed.options.reject) {
+      return error;
+    }
+    throw error;
+  }
+  return {
+    command,
+    escapedCommand,
+    exitCode: 0,
+    stdout,
+    stderr,
+    failed: false,
+    timedOut: false,
+    isCanceled: false,
+    killed: false
+  };
+}
+function create$(options) {
+  function $(templatesOrOptions, ...expressions) {
+    if (!Array.isArray(templatesOrOptions)) {
+      return create$({ ...options, ...templatesOrOptions });
+    }
+    const [file, ...args] = parseTemplates(templatesOrOptions, expressions);
+    return execa(file, args, normalizeScriptOptions(options));
+  }
+  $.sync = (templates, ...expressions) => {
+    if (!Array.isArray(templates)) {
+      throw new TypeError("Please use $(options).sync`command` instead of $.sync(options)`command`.");
+    }
+    const [file, ...args] = parseTemplates(templates, expressions);
+    return execaSync(file, args, normalizeScriptOptions(options));
+  };
+  return $;
+}
+var import_cross_spawn, DEFAULT_MAX_BUFFER, getEnv = ({ env: envOption, extendEnv, preferLocal, localDir, execPath }) => {
+  const env3 = extendEnv ? { ...process18.env, ...envOption } : envOption;
+  if (preferLocal) {
+    return npmRunPathEnv({ env: env3, cwd: localDir, execPath });
+  }
+  return env3;
+}, handleArguments = (file, args, options = {}) => {
+  const parsed = import_cross_spawn.default._parse(file, args, options);
+  file = parsed.command;
+  args = parsed.args;
+  options = parsed.options;
+  options = {
+    maxBuffer: DEFAULT_MAX_BUFFER,
+    buffer: true,
+    stripFinalNewline: true,
+    extendEnv: true,
+    preferLocal: false,
+    localDir: options.cwd || process18.cwd(),
+    execPath: process18.execPath,
+    encoding: "utf8",
+    reject: true,
+    cleanup: true,
+    all: false,
+    windowsHide: true,
+    verbose: verboseDefault,
+    ...options
+  };
+  options.env = getEnv(options);
+  options.stdio = normalizeStdio(options);
+  if (process18.platform === "win32" && path2.basename(file, ".exe") === "cmd") {
+    args.unshift("/q");
+  }
+  return { file, args, options, parsed };
+}, handleOutput = (options, value, error) => {
+  if (typeof value !== "string" && !Buffer4.isBuffer(value)) {
+    return error === undefined ? undefined : "";
+  }
+  if (options.stripFinalNewline) {
+    return stripFinalNewline(value);
+  }
+  return value;
+}, normalizeScriptStdin = ({ input, inputFile, stdio }) => input === undefined && inputFile === undefined && stdio === undefined ? { stdin: "inherit" } : {}, normalizeScriptOptions = (options = {}) => ({
+  preferLocal: true,
+  ...normalizeScriptStdin(options),
+  ...options
+}), $;
+var init_execa = __esm(() => {
+  init_npm_run_path();
+  init_onetime();
+  init_error();
+  init_stdio();
+  init_kill();
+  init_pipe();
+  init_stream();
+  init_promise();
+  init_command();
+  init_verbose();
+  import_cross_spawn = __toESM(require_cross_spawn(), 1);
+  DEFAULT_MAX_BUFFER = 1000 * 1000 * 100;
+  $ = create$();
+});
+
+// node_modules/clipboardy/lib/termux.js
+var handler = (error) => {
+  if (error.code === "ENOENT") {
+    throw new Error("Couldn't find the termux-api scripts. You can install them with: apt install termux-api");
+  }
+  throw error;
+}, clipboard, termux_default;
+var init_termux = __esm(() => {
+  init_execa();
+  clipboard = {
+    async copy(options) {
+      try {
+        await execa("termux-clipboard-set", options);
+      } catch (error) {
+        handler(error);
+      }
+    },
+    async paste(options) {
+      try {
+        const { stdout } = await execa("termux-clipboard-get", options);
+        return stdout;
+      } catch (error) {
+        handler(error);
+      }
+    },
+    copySync(options) {
+      try {
+        execaSync("termux-clipboard-set", options);
+      } catch (error) {
+        handler(error);
+      }
+    },
+    pasteSync(options) {
+      try {
+        return execaSync("termux-clipboard-get", options).stdout;
+      } catch (error) {
+        handler(error);
+      }
+    }
+  };
+  termux_default = clipboard;
+});
+
+// node_modules/clipboardy/lib/linux.js
+import path3 from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
+var __dirname2, xsel = "xsel", xselFallback, copyArguments, pasteArguments, makeError2 = (xselError, fallbackError) => {
+  let error;
+  if (xselError.code === "ENOENT") {
+    error = new Error("Couldn't find the `xsel` binary and fallback didn't work. On Debian/Ubuntu you can install xsel with: sudo apt install xsel");
+  } else {
+    error = new Error("Both xsel and fallback failed");
+    error.xselError = xselError;
+  }
+  error.fallbackError = fallbackError;
+  return error;
+}, xselWithFallback = async (argumentList, options) => {
+  try {
+    const { stdout } = await execa(xsel, argumentList, options);
+    return stdout;
+  } catch (xselError) {
+    try {
+      const { stdout } = await execa(xselFallback, argumentList, options);
+      return stdout;
+    } catch (fallbackError) {
+      throw makeError2(xselError, fallbackError);
+    }
+  }
+}, xselWithFallbackSync = (argumentList, options) => {
+  try {
+    return execaSync(xsel, argumentList, options).stdout;
+  } catch (xselError) {
+    try {
+      return execaSync(xselFallback, argumentList, options).stdout;
+    } catch (fallbackError) {
+      throw makeError2(xselError, fallbackError);
+    }
+  }
+}, clipboard2, linux_default;
+var init_linux = __esm(() => {
+  init_execa();
+  __dirname2 = path3.dirname(fileURLToPath2(import.meta.url));
+  xselFallback = path3.join(__dirname2, "../fallbacks/linux/xsel");
+  copyArguments = ["--clipboard", "--input"];
+  pasteArguments = ["--clipboard", "--output"];
+  clipboard2 = {
+    async copy(options) {
+      await xselWithFallback(copyArguments, options);
+    },
+    copySync(options) {
+      xselWithFallbackSync(copyArguments, options);
+    },
+    paste: (options) => xselWithFallback(pasteArguments, options),
+    pasteSync: (options) => xselWithFallbackSync(pasteArguments, options)
+  };
+  linux_default = clipboard2;
+});
+
+// node_modules/clipboardy/lib/macos.js
+var env3, clipboard3, macos_default;
+var init_macos = __esm(() => {
+  init_execa();
+  env3 = {
+    LC_CTYPE: "UTF-8"
+  };
+  clipboard3 = {
+    copy: async (options) => execa("pbcopy", { ...options, env: env3 }),
+    async paste(options) {
+      const { stdout } = await execa("pbpaste", { ...options, env: env3 });
+      return stdout;
+    },
+    copySync: (options) => execaSync("pbcopy", { ...options, env: env3 }),
+    pasteSync: (options) => execaSync("pbpaste", { ...options, env: env3 }).stdout
+  };
+  macos_default = clipboard3;
+});
+
+// node_modules/system-architecture/index.js
+import { promisify } from "util";
+import process19 from "process";
+import childProcess2 from "child_process";
+function systemArchitectureSync() {
+  const { arch, platform: platform2, env: env4 } = process19;
+  if (platform2 === "darwin" && arch === "x64") {
+    const stdout = childProcess2.execFileSync("sysctl", ["-inq", "sysctl.proc_translated"], { encoding: "utf8" });
+    return stdout.trim() === "1" ? "arm64" : "x64";
+  }
+  if (arch === "arm64" || arch === "x64") {
+    return arch;
+  }
+  if (platform2 === "win32" && Object.hasOwn(env4, "PROCESSOR_ARCHITEW6432")) {
+    return "x64";
+  }
+  if (platform2 === "linux") {
+    const stdout = childProcess2.execFileSync("getconf", ["LONG_BIT"], { encoding: "utf8" });
+    if (stdout.trim() === "64") {
+      return "x64";
+    }
+  }
+  return arch;
+}
+var execFilePromises;
+var init_system_architecture = __esm(() => {
+  execFilePromises = promisify(childProcess2.execFile);
+});
+
+// node_modules/is64bit/index.js
+function is64bitSync() {
+  return archtectures64bit.has(systemArchitectureSync());
+}
+var archtectures64bit;
+var init_is64bit = __esm(() => {
+  init_system_architecture();
+  archtectures64bit = new Set([
+    "arm64",
+    "x64",
+    "ppc64",
+    "riscv64"
+  ]);
+});
+
+// node_modules/clipboardy/lib/windows.js
+import path4 from "path";
+import { fileURLToPath as fileURLToPath3 } from "url";
+var __dirname3, binarySuffix, windowBinaryPath, clipboard4, windows_default;
+var init_windows = __esm(() => {
+  init_execa();
+  init_is64bit();
+  __dirname3 = path4.dirname(fileURLToPath3(import.meta.url));
+  binarySuffix = is64bitSync() ? "x86_64" : "i686";
+  windowBinaryPath = path4.join(__dirname3, `../fallbacks/windows/clipboard_${binarySuffix}.exe`);
+  clipboard4 = {
+    copy: async (options) => execa(windowBinaryPath, ["--copy"], options),
+    async paste(options) {
+      const { stdout } = await execa(windowBinaryPath, ["--paste"], options);
+      return stdout;
+    },
+    copySync: (options) => execaSync(windowBinaryPath, ["--copy"], options),
+    pasteSync: (options) => execaSync(windowBinaryPath, ["--paste"], options).stdout
+  };
+  windows_default = clipboard4;
+});
+
+// node_modules/clipboardy/index.js
+import process20 from "process";
+var platformLib, clipboard5, clipboardy_default;
+var init_clipboardy = __esm(() => {
+  init_is_wsl();
+  init_termux();
+  init_linux();
+  init_macos();
+  init_windows();
+  platformLib = (() => {
+    switch (process20.platform) {
+      case "darwin": {
+        return macos_default;
+      }
+      case "win32": {
+        return windows_default;
+      }
+      case "android": {
+        if (process20.env.PREFIX !== "/data/data/com.termux/files/usr") {
+          throw new Error("You need to install Termux for this module to work on Android: https://termux.com");
+        }
+        return termux_default;
+      }
+      default: {
+        if (is_wsl_default) {
+          return windows_default;
+        }
+        return linux_default;
+      }
+    }
+  })();
+  clipboard5 = {};
+  clipboard5.write = async (text) => {
+    if (typeof text !== "string") {
+      throw new TypeError(`Expected a string, got ${typeof text}`);
+    }
+    await platformLib.copy({ input: text });
+  };
+  clipboard5.read = async () => platformLib.paste({ stripFinalNewline: false });
+  clipboard5.writeSync = (text) => {
+    if (typeof text !== "string") {
+      throw new TypeError(`Expected a string, got ${typeof text}`);
+    }
+    platformLib.copySync({ input: text });
+  };
+  clipboard5.readSync = () => platformLib.pasteSync({ stripFinalNewline: false });
+  clipboardy_default = clipboard5;
+});
+
+// src/components/JsonTree.tsx
+function JsonTree(props) {
   return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Box2, {
     flexDirection: "column",
-    children: [
-      props.header,
-      props.body,
-      props.footer,
-      props.overlay
-    ]
-  }, undefined, true, undefined, this);
+    children: props.rows.map((row, index) => {
+      const focused = index === props.cursor;
+      const indent = "  ".repeat(row.depth);
+      const marker = row.expandable ? row.expanded ? "\u25BE" : "\u25B8" : " ";
+      return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text2, {
+        color: focused ? "black" : undefined,
+        backgroundColor: focused ? "white" : undefined,
+        children: [
+          indent,
+          marker,
+          " ",
+          row.keyLabel,
+          ": ",
+          row.valueLabel
+        ]
+      }, row.path, true, undefined, this);
+    })
+  }, undefined, false, undefined, this);
 }
 var jsx_dev_runtime3;
-var init_FullscreenLayout = __esm(async () => {
+var init_JsonTree = __esm(async () => {
   await init_ink2();
   jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
-// src/components/Header.tsx
-function Header(props) {
-  const source = props.source;
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
-    flexDirection: "column",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
-        justifyContent: "space-between",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-            color: "cyan",
-            children: "log"
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "tab ",
-              props.activeIndex + 1,
-              "/",
-              props.totalSources
-            ]
-          }, undefined, true, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-        dimColor: true,
-        children: [
-          source?.spec.label ?? "no source",
-          " \xB7 entries=",
-          source?.entries.length ?? 0,
-          " \xB7 json=",
-          source?.jsonCount ?? 0,
-          " \xB7 text=",
-          source?.textCount ?? 0,
-          " \xB7 dropped=",
-          source?.droppedCount ?? 0
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-        dimColor: true,
-        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
+// src/lib/ansi.ts
+function parseAnsiText(input) {
+  const regex2 = /\u001b\[([0-9;]+)m/g;
+  const segments = [];
+  let lastIndex = 0;
+  let current = {};
+  let match;
+  while ((match = regex2.exec(input)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({
+        text: input.slice(lastIndex, match.index),
+        ...current
+      });
+    }
+    const codes = match[1].split(";").map(Number);
+    for (const code of codes) {
+      if (code === 0)
+        current = {};
+      if (code === 1)
+        current = { ...current, bold: true };
+      if (code in COLOR_MAP)
+        current = { ...current, color: COLOR_MAP[code] };
+    }
+    lastIndex = regex2.lastIndex;
+  }
+  if (lastIndex < input.length) {
+    segments.push({
+      text: input.slice(lastIndex),
+      ...current
+    });
+  }
+  return segments.filter((segment) => segment.text.length > 0);
+}
+var COLOR_MAP;
+var init_ansi = __esm(() => {
+  COLOR_MAP = {
+    31: "red",
+    32: "green",
+    33: "yellow",
+    34: "blue",
+    35: "magenta",
+    36: "cyan",
+    37: "white"
+  };
+});
+
+// src/components/TextDetail.tsx
+function TextDetail(props) {
+  const segments = parseAnsiText(props.text);
+  if (segments.length === 0) {
+    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+      wrap: "wrap",
+      children: props.text
+    }, undefined, false, undefined, this);
+  }
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+    wrap: "wrap",
+    children: segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+      color: segment.color,
+      bold: segment.bold,
+      children: segment.text
+    }, `${segment.text}-${index}`, false, undefined, this))
+  }, undefined, false, undefined, this);
 }
 var jsx_dev_runtime4;
-var init_Header = __esm(async () => {
+var init_TextDetail = __esm(async () => {
+  init_ansi();
   await init_ink2();
   jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
-// src/components/Footer.tsx
-function Footer(props) {
+// src/components/DetailPane.tsx
+function DetailPane(props) {
+  if (!props.entry) {
+    return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
+      dimColor: true,
+      children: "No entry selected"
+    }, undefined, false, undefined, this);
+  }
   return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
-        dimColor: true,
-        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
-        children: props.statusLine
-      }, undefined, false, undefined, this),
+        color: "cyan",
+        children: [
+          props.entry.kind === "json" ? "JSON detail" : "Text detail",
+          " \xB7 mode:",
+          props.detailMode
+        ]
+      }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
         children: [
-          "focus:",
-          props.focusMode,
-          " \xB7 follow:",
-          props.follow ? "on" : "off",
-          " \xB7 reverse:",
-          props.reverse ? "on" : "off",
-          " \xB7 fps:",
-          props.fps,
-          " \xB7 j/k move \xB7 Enter detail \xB7 F filter \xB7 Space fold \xB7 Tab next source \xB7 ? help \xB7 q quit"
+          props.entry.prefix ? `${props.entry.prefix} \xB7 ` : "",
+          props.entry.timeText ?? "no-time",
+          " \xB7 ",
+          String(props.entry.levelNormalized)
         ]
-      }, undefined, true, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-}
-var jsx_dev_runtime5;
-var init_Footer = __esm(async () => {
-  await init_ink2();
-  jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
-});
-
-// src/components/HelpModal.tsx
-function HelpModal() {
-  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Box2, {
-    borderStyle: "round",
-    borderColor: "cyan",
-    padding: 1,
-    flexDirection: "column",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        bold: true,
-        children: "log help"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "j/k or \u2191/\u2193 move selection"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "PgUp/PgDn page"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "Home/End or g/G jump"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "Enter switch list/detail focus"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "Space folds JSON node in detail mode"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "F opens filter mode"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "R reverses order"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "Tab / Shift+Tab change tab"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "m toggles tree/raw detail mode"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "Esc closes modal or returns to list"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
-        children: "q quits"
+      }, undefined, true, undefined, this),
+      props.searchTerm ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
+        dimColor: true,
+        children: [
+          "search: ",
+          props.searchTerm,
+          " \xB7 matches: ",
+          props.searchMatches.length
+        ]
+      }, undefined, true, undefined, this) : null,
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
+        marginTop: 1,
+        flexDirection: "column",
+        children: props.entry.kind === "json" && props.detailMode === "tree" ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(JsonTree, {
+          rows: props.jsonRows,
+          cursor: props.jsonCursor
+        }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TextDetail, {
+          text: props.entry.raw
+        }, undefined, false, undefined, this)
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 }
-var jsx_dev_runtime6;
-var init_HelpModal = __esm(async () => {
-  await init_ink2();
-  jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime5;
+var init_DetailPane = __esm(async () => {
+  await __promiseAll([
+    init_ink2(),
+    init_JsonTree(),
+    init_TextDetail()
+  ]);
+  jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
 // node_modules/ink-text-input/build/index.js
@@ -39515,23 +41836,23 @@ var init_build3 = __esm(async () => {
 
 // src/components/FilterBar.tsx
 function FilterBar(props) {
-  return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
         color: "yellow",
         children: "Filter mode"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
         dimColor: true,
         children: "Use substring or field:value tokens. Enter applies, Esc cancels."
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Box2, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text2, {
             children: "filter> "
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(build_default, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(build_default, {
             value: props.value,
             onChange: props.onChange,
             onSubmit: props.onSubmit
@@ -39541,13 +41862,172 @@ function FilterBar(props) {
     ]
   }, undefined, true, undefined, this);
 }
-var jsx_dev_runtime7;
+var jsx_dev_runtime6;
 var init_FilterBar = __esm(async () => {
   await __promiseAll([
     init_build3(),
     init_ink2()
   ]);
+  jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
+});
+
+// src/components/Footer.tsx
+function Footer(props) {
+  return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        children: props.statusLine
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: [
+          "focus:",
+          props.focusMode,
+          " \xB7 follow:",
+          props.follow ? "on" : "off",
+          " \xB7 reverse:",
+          props.reverse ? "on" : "off",
+          " \xB7 merged:",
+          props.mergedView ? "on" : "off",
+          " \xB7 query:",
+          props.query ? "on" : "off",
+          " \xB7 search:",
+          props.search ? "on" : "off",
+          " \xB7 fps:",
+          props.fps,
+          " \xB7 j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold \xB7 Tab next source \xB7 M merged \xB7 y yank \xB7 ? help \xB7 q quit"
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var jsx_dev_runtime7;
+var init_Footer = __esm(async () => {
+  await init_ink2();
   jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
+});
+
+// src/components/FullscreenLayout.tsx
+function FullscreenLayout(props) {
+  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: [
+      props.header,
+      props.body,
+      props.footer,
+      props.overlay
+    ]
+  }, undefined, true, undefined, this);
+}
+var jsx_dev_runtime8;
+var init_FullscreenLayout = __esm(async () => {
+  await init_ink2();
+  jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
+});
+
+// src/components/Header.tsx
+function Header(props) {
+  const source = props.source;
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
+        justifyContent: "space-between",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            color: "cyan",
+            children: "log"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            dimColor: true,
+            children: props.mergedView ? "merged" : `tab ${props.activeIndex + 1}/${props.totalSources}`
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+        dimColor: true,
+        children: [
+          (props.mergedView ? "all sources" : source?.spec.label) ?? "no source",
+          " \xB7 entries=",
+          source?.entries.length ?? 0,
+          " \xB7 json=",
+          source?.jsonCount ?? 0,
+          " \xB7 text=",
+          source?.textCount ?? 0,
+          " \xB7 dropped=",
+          source?.droppedCount ?? 0
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+        dimColor: true,
+        children: "-".repeat(Math.max(0, (process.stdout.columns ?? 100) - 2))
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var jsx_dev_runtime9;
+var init_Header = __esm(async () => {
+  await init_ink2();
+  jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+});
+
+// src/components/HelpModal.tsx
+function HelpModal() {
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Box2, {
+    borderStyle: "round",
+    borderColor: "cyan",
+    padding: 1,
+    flexDirection: "column",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        bold: true,
+        children: "log help"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "j/k or \u2191/\u2193 move selection"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "PgUp/PgDn page"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "Home/End or g/G jump"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "Enter switch list/detail focus"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "Space folds JSON node in detail mode"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "F opens filter mode"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "R reverses order"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "Tab / Shift+Tab change tab"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "m toggles tree/raw detail mode"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "Esc closes modal or returns to list"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
+        children: "q quits"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var jsx_dev_runtime10;
+var init_HelpModal = __esm(async () => {
+  await init_ink2();
+  jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
 // src/components/LogList.tsx
@@ -39559,10 +42039,10 @@ function cell(value, width) {
   return text.padEnd(width, " ");
 }
 function LogList(props) {
-  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Box2, {
+  return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
         dimColor: true,
         children: props.columns.map((column) => cell(column.label, column.width)).join(" ")
       }, undefined, false, undefined, this),
@@ -39575,7 +42055,7 @@ function LogList(props) {
           message: entry.message,
           prefix: entry.prefix
         };
-        return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Text2, {
+        return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
           color: selected ? "black" : undefined,
           backgroundColor: selected ? "white" : undefined,
           children: [
@@ -39588,103 +42068,91 @@ function LogList(props) {
     ]
   }, undefined, true, undefined, this);
 }
-var jsx_dev_runtime8;
+var jsx_dev_runtime11;
 var init_LogList = __esm(async () => {
   await init_ink2();
-  jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
+  jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
-// src/components/JsonTree.tsx
-function JsonTree(props) {
-  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
-    flexDirection: "column",
-    children: props.rows.map((row, index) => {
-      const focused = index === props.cursor;
-      const indent = "  ".repeat(row.depth);
-      const marker = row.expandable ? row.expanded ? "\u25BE" : "\u25B8" : " ";
-      return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-        color: focused ? "black" : undefined,
-        backgroundColor: focused ? "white" : undefined,
-        children: [
-          indent,
-          marker,
-          " ",
-          row.keyLabel,
-          ": ",
-          row.valueLabel
-        ]
-      }, row.path, true, undefined, this);
-    })
-  }, undefined, false, undefined, this);
-}
-var jsx_dev_runtime9;
-var init_JsonTree = __esm(async () => {
-  await init_ink2();
-  jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
-});
-
-// src/components/TextDetail.tsx
-function TextDetail(props) {
-  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Text2, {
-    wrap: "wrap",
-    children: props.text
-  }, undefined, false, undefined, this);
-}
-var jsx_dev_runtime10;
-var init_TextDetail = __esm(async () => {
-  await init_ink2();
-  jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
-});
-
-// src/components/DetailPane.tsx
-function DetailPane(props) {
-  if (!props.entry) {
-    return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
-      dimColor: true,
-      children: "No entry selected"
-    }, undefined, false, undefined, this);
-  }
-  return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Box2, {
+// src/components/QueryBar.tsx
+function QueryBar(props) {
+  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
         color: "cyan",
+        children: "Query mode"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
+        dimColor: true,
+        children: 'Examples: level = "error", exists(user.id), level in ("warn","error"), message =~ /health/'
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
         children: [
-          props.entry.kind === "json" ? "JSON detail" : "Text detail",
-          " \xB7 mode:",
-          props.detailMode
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
+            children: "query> "
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(build_default, {
+            value: props.value,
+            onChange: props.onChange,
+            onSubmit: props.onSubmit
+          }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
         dimColor: true,
         children: [
-          props.entry.prefix ? `${props.entry.prefix} \xB7 ` : "",
-          props.entry.timeText ?? "no-time",
-          " \xB7 ",
-          String(props.entry.levelNormalized)
+          "Suggestions: ",
+          props.suggestions.join(" \xB7 ")
         ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Box2, {
-        marginTop: 1,
-        flexDirection: "column",
-        children: props.entry.kind === "json" && props.detailMode === "tree" ? /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(JsonTree, {
-          rows: props.jsonRows,
-          cursor: props.jsonCursor
-        }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(TextDetail, {
-          text: props.entry.raw
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this)
+      }, undefined, true, undefined, this)
     ]
   }, undefined, true, undefined, this);
 }
-var jsx_dev_runtime11;
-var init_DetailPane = __esm(async () => {
+var jsx_dev_runtime12;
+var init_QueryBar = __esm(async () => {
   await __promiseAll([
-    init_ink2(),
-    init_JsonTree(),
-    init_TextDetail()
+    init_build3(),
+    init_ink2()
   ]);
-  jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
+  jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+});
+
+// src/components/SearchBar.tsx
+function SearchBar(props) {
+  return /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Text2, {
+        color: "magenta",
+        children: "Search mode"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Text2, {
+        dimColor: true,
+        children: "Searches the current detail pane. Enter applies, n/N move through matches."
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Box2, {
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Text2, {
+            children: "search> "
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(build_default, {
+            value: props.value,
+            onChange: props.onChange,
+            onSubmit: props.onSubmit
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+}
+var jsx_dev_runtime13;
+var init_SearchBar = __esm(async () => {
+  await __promiseAll([
+    init_build3(),
+    init_ink2()
+  ]);
+  jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
 // src/hooks/useTerminalSize.ts
@@ -39708,26 +42176,35 @@ var init_useTerminalSize = __esm(() => {
   import_react24 = __toESM(require_react(), 1);
 });
 
-// src/hooks/useVirtualWindow.ts
-function useVirtualWindow(items, selectedIndex, visibleCount) {
-  return import_react25.useMemo(() => {
-    const maxStart = Math.max(0, items.length - visibleCount);
-    const center = Math.floor(visibleCount / 2);
-    let start = selectedIndex - center;
-    if (start < 0)
-      start = 0;
-    if (start > maxStart)
-      start = maxStart;
-    return {
-      start,
-      visible: items.slice(start, start + visibleCount)
-    };
-  }, [items, selectedIndex, visibleCount]);
+// src/lib/detailActions.ts
+function copyCurrentPath(row) {
+  return row.path;
 }
-var import_react25;
-var init_useVirtualWindow = __esm(() => {
-  import_react25 = __toESM(require_react(), 1);
-});
+function copyCurrentKey(row) {
+  return row.keyLabel;
+}
+function copyCurrentJsonValue(row) {
+  return row.valueLabel;
+}
+function createDetailSearch(rows, term) {
+  const lowered = term.toLowerCase();
+  const matches = rows.map((row, index) => ({ row, index })).filter(({ row }) => `${row.keyLabel} ${row.valueLabel}`.toLowerCase().includes(lowered)).map(({ index }) => index);
+  const next = (index) => {
+    for (const match of matches) {
+      if (match > index)
+        return match;
+    }
+    return matches[0] ?? index;
+  };
+  const prev = (index) => {
+    for (let i = matches.length - 1;i >= 0; i -= 1) {
+      if (matches[i] < index)
+        return matches[i];
+    }
+    return matches.at(-1) ?? index;
+  };
+  return { matches, next, prev };
+}
 
 // src/lib/filter.ts
 function tokenMatches(entry, token) {
@@ -39766,11 +42243,11 @@ function previewValue(value) {
     return JSON.stringify(value);
   return String(value);
 }
-function walk(keyLabel, value, path, depth, expanded, rows) {
+function walk(keyLabel, value, path5, depth, expanded, rows) {
   const expandable = value !== null && typeof value === "object" && Object.keys(value).length > 0;
-  const isExpanded = expanded.has(path);
+  const isExpanded = expanded.has(path5);
   rows.push({
-    path,
+    path: path5,
     depth,
     keyLabel,
     valueLabel: previewValue(value),
@@ -39782,18 +42259,242 @@ function walk(keyLabel, value, path, depth, expanded, rows) {
   }
   if (Array.isArray(value)) {
     value.forEach((child, index) => {
-      walk(`[${index}]`, child, `${path}[${index}]`, depth + 1, expanded, rows);
+      walk(`[${index}]`, child, `${path5}[${index}]`, depth + 1, expanded, rows);
     });
     return;
   }
   for (const [childKey, childValue] of Object.entries(value)) {
-    walk(childKey, childValue, `${path}.${childKey}`, depth + 1, expanded, rows);
+    walk(childKey, childValue, `${path5}.${childKey}`, depth + 1, expanded, rows);
   }
 }
 function flattenJsonTree(value, expanded) {
   const rows = [];
   walk("root", value, "root", 0, expanded, rows);
   return rows;
+}
+
+// src/lib/merge.ts
+function mergeEntriesByTime(entrySets, reverse) {
+  const merged = entrySets.flat();
+  merged.sort((a, b) => {
+    const timeA = a.timestampMs ?? Number.MAX_SAFE_INTEGER;
+    const timeB = b.timestampMs ?? Number.MAX_SAFE_INTEGER;
+    if (timeA !== timeB) {
+      return reverse ? timeB - timeA : timeA - timeB;
+    }
+    return reverse ? b.lineNumber - a.lineNumber : a.lineNumber - b.lineNumber;
+  });
+  return merged;
+}
+
+// src/lib/query.ts
+function tokenize4(input) {
+  const tokens = [];
+  let i = 0;
+  while (i < input.length) {
+    const char = input[i];
+    if (/\s/.test(char)) {
+      i += 1;
+      continue;
+    }
+    if (char === "(" || char === ")") {
+      tokens.push({ type: "paren", value: char });
+      i += 1;
+      continue;
+    }
+    if (char === ",") {
+      tokens.push({ type: "comma" });
+      i += 1;
+      continue;
+    }
+    if (char === '"') {
+      let j = i + 1;
+      let value2 = "";
+      while (j < input.length && input[j] !== '"') {
+        value2 += input[j];
+        j += 1;
+      }
+      tokens.push({ type: "string", value: value2 });
+      i = j + 1;
+      continue;
+    }
+    if (char === "/") {
+      let j = i + 1;
+      let value2 = "";
+      while (j < input.length && input[j] !== "/") {
+        value2 += input[j];
+        j += 1;
+      }
+      tokens.push({ type: "regex", value: value2 });
+      i = j + 1;
+      continue;
+    }
+    if (input.startsWith("=~", i)) {
+      tokens.push({ type: "operator", value: "=~" });
+      i += 2;
+      continue;
+    }
+    if (char === "=") {
+      tokens.push({ type: "operator", value: "=" });
+      i += 1;
+      continue;
+    }
+    const match = /^[A-Za-z0-9_.?-]+/.exec(input.slice(i));
+    if (!match) {
+      throw new Error(`Unexpected query token near: ${input.slice(i)}`);
+    }
+    const value = match[0];
+    const lowered = value.toLowerCase();
+    if (["and", "or", "not", "like", "in", "exists"].includes(lowered)) {
+      tokens.push({ type: "operator", value: lowered });
+    } else {
+      tokens.push({ type: "identifier", value });
+    }
+    i += value.length;
+  }
+  return tokens;
+}
+function parse(tokens) {
+  let index = 0;
+  const peek = () => tokens[index];
+  const peekValue = () => {
+    const token = peek();
+    return token && "value" in token ? token.value : undefined;
+  };
+  const consume = () => tokens[index++];
+  const readValueToken = () => {
+    const token = consume();
+    if (!token || !("value" in token)) {
+      throw new Error("expected token value");
+    }
+    return token;
+  };
+  const parsePrimary = () => {
+    const token = consume();
+    if (!token)
+      throw new Error("Unexpected end of query");
+    if (token.type === "operator" && token.value === "not") {
+      return { type: "not", expr: parsePrimary() };
+    }
+    if (token.type === "operator" && token.value === "exists") {
+      if (peek()?.type !== "paren" || peekValue() !== "(")
+        throw new Error("expected (");
+      consume();
+      const field2 = readValueToken();
+      if (!field2 || field2.type !== "identifier")
+        throw new Error("expected field in exists()");
+      if (peek()?.type !== "paren" || peekValue() !== ")")
+        throw new Error("expected )");
+      consume();
+      return { type: "exists", field: field2.value };
+    }
+    if (token.type === "paren" && token.value === "(") {
+      const expr = parseOr();
+      if (peek()?.type !== "paren" || peekValue() !== ")")
+        throw new Error("expected )");
+      consume();
+      return expr;
+    }
+    if (token.type !== "identifier")
+      throw new Error("expected identifier");
+    const field = token.value;
+    const op = consume();
+    if (!op || op.type !== "operator")
+      throw new Error("expected operator");
+    if (op.value === "in") {
+      if (peek()?.type !== "paren" || peekValue() !== "(")
+        throw new Error("expected (");
+      consume();
+      const values = [];
+      while (true) {
+        const valueToken2 = readValueToken();
+        if (!valueToken2 || !["string", "identifier"].includes(valueToken2.type)) {
+          throw new Error("expected value in in()");
+        }
+        values.push(valueToken2.value);
+        if (peek()?.type === "comma") {
+          consume();
+          continue;
+        }
+        break;
+      }
+      if (peek()?.type !== "paren" || peekValue() !== ")")
+        throw new Error("expected )");
+      consume();
+      return { type: "in", field, values };
+    }
+    const valueToken = readValueToken();
+    if (!valueToken || !["string", "identifier", "regex"].includes(valueToken.type)) {
+      throw new Error("expected comparison value");
+    }
+    const value = valueToken.value;
+    if (op.value !== "=" && op.value !== "like" && op.value !== "=~") {
+      throw new Error(`unsupported operator ${op.value}`);
+    }
+    return { type: "compare", field, op: op.value, value };
+  };
+  const parseAnd = () => {
+    let expr = parsePrimary();
+    while (peek()?.type === "operator" && peekValue() === "and") {
+      consume();
+      expr = { type: "binary", op: "and", left: expr, right: parsePrimary() };
+    }
+    return expr;
+  };
+  const parseOr = () => {
+    let expr = parseAnd();
+    while (peek()?.type === "operator" && peekValue() === "or") {
+      consume();
+      expr = { type: "binary", op: "or", left: expr, right: parseAnd() };
+    }
+    return expr;
+  };
+  const expression = parseOr();
+  if (index < tokens.length) {
+    throw new Error("unexpected trailing query tokens");
+  }
+  return expression;
+}
+function getFieldValue(entry, field) {
+  const normalized = field.toLowerCase();
+  if (normalized === "prefix")
+    return entry.prefix;
+  if (normalized === "message")
+    return entry.message;
+  if (normalized === "level")
+    return String(entry.levelNormalized);
+  if (normalized === "time")
+    return entry.timeText;
+  return entry.fieldIndex[normalized] ?? entry.fieldIndex[normalized.replace(/\[(\d+)\]/g, ".$1")];
+}
+function evaluate(expr, entry) {
+  switch (expr.type) {
+    case "binary":
+      return expr.op === "and" ? evaluate(expr.left, entry) && evaluate(expr.right, entry) : evaluate(expr.left, entry) || evaluate(expr.right, entry);
+    case "not":
+      return !evaluate(expr.expr, entry);
+    case "exists":
+      return getFieldValue(entry, expr.field) !== undefined;
+    case "in": {
+      const current = getFieldValue(entry, expr.field)?.toLowerCase();
+      return current ? expr.values.map((v) => v.toLowerCase()).includes(current) : false;
+    }
+    case "compare": {
+      const current = getFieldValue(entry, expr.field) ?? "";
+      if (expr.op === "=")
+        return current.toLowerCase() === expr.value.toLowerCase();
+      if (expr.op === "like")
+        return current.toLowerCase().includes(expr.value.toLowerCase());
+      return new RegExp(expr.value, "i").test(current);
+    }
+  }
+}
+function buildQuery(input) {
+  const trimmed = input.trim();
+  if (!trimmed)
+    return () => true;
+  const expression = parse(tokenize4(trimmed));
+  return (entry) => evaluate(expression, entry);
 }
 
 // src/lib/ringBuffer.ts
@@ -39864,6 +42565,28 @@ function previewFromJson(json) {
     return "[unserializable json]";
   }
 }
+function addIndexedFields(target, prefix, value) {
+  const key = prefix.toLowerCase();
+  if (typeof value === "string") {
+    target[key] = value;
+    return;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    target[key] = String(value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    target[key] = previewFromJson(value);
+    value.forEach((item, index) => addIndexedFields(target, `${prefix}.${index}`, item));
+    return;
+  }
+  if (value && typeof value === "object") {
+    target[key] = previewFromJson(value);
+    for (const [childKey, childValue] of Object.entries(value)) {
+      addIndexedFields(target, `${prefix}.${childKey}`, childValue);
+    }
+  }
+}
 function extractFromRecord(record) {
   let timeText;
   let timestampMs;
@@ -39899,7 +42622,7 @@ function extractFromRecord(record) {
     message
   };
   for (const [key, value] of Object.entries(record)) {
-    fieldIndex[key.toLowerCase()] = typeof value === "string" ? value : previewFromJson(value);
+    addIndexedFields(fieldIndex, key, value);
   }
   if (timeText)
     fieldIndex.time = timeText;
@@ -40024,10 +42747,10 @@ var init_cmdSource = __esm(() => {
 });
 
 // src/lib/source/fileSource.ts
-import fs2 from "fs";
+import fs5 from "fs";
 import readline2 from "readline";
 function startFileSource(source, events) {
-  const stream = fs2.createReadStream(source.filePath, { encoding: "utf8" });
+  const stream = fs5.createReadStream(source.filePath, { encoding: "utf8" });
   const rl = readline2.createInterface({ input: stream, crlfDelay: Infinity });
   let lineNumber = 0;
   (async () => {
@@ -40201,15 +42924,58 @@ var exports_LogScreen = {};
 __export(exports_LogScreen, {
   LogScreen: () => LogScreen
 });
-function getActiveSource(sources, index) {
-  return sources[index];
-}
 function getVisibleEntries(source) {
   if (!source)
     return [];
-  const predicate = buildFilter(source.filter);
-  const filtered = source.entries.filter(predicate);
+  const filter = buildFilter(source.filter);
+  const query = buildQuery(source.query);
+  const filtered = source.entries.filter((entry) => filter(entry) && query(entry));
   return source.reverse ? [...filtered].reverse() : filtered;
+}
+function getSyntheticMergedSource(sources) {
+  const seed = sources[0] ?? {
+    spec: { id: "merged", label: "all sources", kind: "file" },
+    entries: [],
+    droppedCount: 0,
+    jsonCount: 0,
+    textCount: 0,
+    filter: "",
+    query: "",
+    follow: true,
+    reverse: false,
+    selectedIndex: 0,
+    expandedPaths: ["root"],
+    detailCursor: 0
+  };
+  const mergedEntries = mergeEntriesByTime(sources.map((source) => source.entries), seed.reverse);
+  const jsonCount = mergedEntries.filter((entry) => entry.kind === "json").length;
+  return {
+    ...seed,
+    spec: { id: "merged", label: "all sources", kind: "file" },
+    entries: mergedEntries,
+    droppedCount: sources.reduce((sum, source) => sum + source.droppedCount, 0),
+    jsonCount,
+    textCount: mergedEntries.length - jsonCount
+  };
+}
+function updateCurrentSource(state, updater) {
+  if (state.sources.length === 0)
+    return state;
+  return {
+    ...state,
+    sources: state.sources.map((source, index) => index === state.activeSourceIndex ? updater(source) : source)
+  };
+}
+async function copyValue(value, setState) {
+  try {
+    await clipboardy_default.write(value);
+    setState((prev) => ({ ...prev, statusLine: `Copied: ${value}` }));
+  } catch (error) {
+    setState((prev) => ({
+      ...prev,
+      statusLine: `Clipboard failed: ${error instanceof Error ? error.message : String(error)}`
+    }));
+  }
 }
 function LogScreen() {
   const { exit } = useApp2();
@@ -40218,44 +42984,52 @@ function LogScreen() {
   const setState = useSetAppState();
   const sources = useAppState((state) => state.sources);
   const activeSourceIndex = useAppState((state) => state.activeSourceIndex);
+  const mergedView = useAppState((state) => state.mergedView);
   const focusMode = useAppState((state) => state.focusMode);
   const detailMode = useAppState((state) => state.detailMode);
   const filterDraft = useAppState((state) => state.filterDraft);
+  const queryDraft = useAppState((state) => state.queryDraft);
+  const detailSearchDraft = useAppState((state) => state.detailSearchDraft);
+  const detailSearchTerm = useAppState((state) => state.detailSearchTerm);
+  const detailSearchMatches = useAppState((state) => state.detailSearchMatches);
   const statusLine = useAppState((state) => state.statusLine);
   const fps = useAppState((state) => state.fps);
+  const lastFlushSize = useAppState((state) => state.lastFlushSize);
   const showHelp = useAppState((state) => state.showHelp);
   const config = useAppState((state) => state.config);
-  const activeSource = getActiveSource(sources, activeSourceIndex);
-  const visibleEntries = import_react26.useMemo(() => getVisibleEntries(activeSource), [activeSource]);
+  const baseSource = sources[activeSourceIndex];
+  const activeSource = import_react25.useMemo(() => mergedView ? getSyntheticMergedSource(sources) : baseSource, [baseSource, mergedView, sources]);
+  const visibleEntries = import_react25.useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
-  const visibleCount = Math.max(8, size.rows - 10);
-  const listWidth = Math.max(42, Math.floor(size.columns * 0.52));
-  const listColumns = import_react26.useMemo(() => {
+  const visibleCount = Math.max(8, size.rows - 12);
+  const listWidth = Math.max(46, Math.floor(size.columns * 0.52));
+  const listColumns = import_react25.useMemo(() => {
     const timeWidth = 24;
     const levelWidth = 8;
     const gap = 2;
-    const messageWidth = Math.max(16, listWidth - timeWidth - levelWidth - gap - 4);
-    return config.columns.map((column) => {
-      if (column.key === "message") {
-        return { ...column, width: messageWidth };
-      }
-      return column;
-    });
+    const messageWidth = Math.max(20, listWidth - timeWidth - levelWidth - gap - 4);
+    return config.columns.map((column) => column.key === "message" ? { ...column, width: messageWidth } : column);
   }, [config.columns, listWidth]);
-  const windowed = useVirtualWindow(visibleEntries, selectedIndex, visibleCount);
+  const start = Math.max(0, Math.min(selectedIndex - Math.floor(visibleCount / 2), Math.max(0, visibleEntries.length - visibleCount)));
+  const visibleWindow = visibleEntries.slice(start, start + visibleCount);
   const selectedEntry = visibleEntries[selectedIndex];
-  const jsonRows = import_react26.useMemo(() => {
+  const jsonRows = import_react25.useMemo(() => {
     if (!selectedEntry || selectedEntry.kind !== "json" || detailMode !== "tree")
       return [];
     return flattenJsonTree(selectedEntry.jsonValue, new Set(activeSource?.expandedPaths ?? ["root"]));
   }, [activeSource?.expandedPaths, detailMode, selectedEntry]);
-  import_react26.useEffect(() => {
+  const detailSearch = import_react25.useMemo(() => createDetailSearch(jsonRows, detailSearchTerm), [jsonRows, detailSearchTerm]);
+  const renderCountRef = import_react25.useRef(0);
+  const lastPerfRef = import_react25.useRef({ count: 0, at: Date.now() });
+  const pendingYankRef = import_react25.useRef(false);
+  renderCountRef.current += 1;
+  import_react25.useEffect(() => {
     const cleanup = startSourceManager(store.getState().sources.map((source) => source.spec), config, {
       onBatch(sourceId, entries, droppedCount) {
         setState((prev) => ({
           ...prev,
           lastFlushSize: entries.length,
-          sources: prev.sources.map((source, index) => {
+          sources: prev.sources.map((source) => {
             if (source.spec.id !== sourceId)
               return source;
             const jsonCount = entries.filter((entry) => entry.kind === "json").length;
@@ -40284,10 +43058,37 @@ function LogScreen() {
     });
     return cleanup;
   }, [config, setState, store]);
+  import_react25.useEffect(() => {
+    const now = Date.now();
+    const elapsed = now - lastPerfRef.current.at;
+    if (elapsed <= 0)
+      return;
+    const rendered = renderCountRef.current - lastPerfRef.current.count;
+    const nextFps = rendered > 0 ? Math.round(rendered * 1000 / elapsed) : fps;
+    lastPerfRef.current = { count: renderCountRef.current, at: now };
+    if (nextFps !== fps && nextFps > 0) {
+      setState((prev) => ({ ...prev, fps: nextFps }));
+    }
+  }, [selectedIndex, focusMode, detailMode, detailSearchTerm, lastFlushSize, fps, setState]);
+  import_react25.useEffect(() => {
+    setState((prev) => prev.detailSearchMatches === detailSearch.matches ? prev : { ...prev, detailSearchMatches: detailSearch.matches });
+  }, [detailSearch.matches, setState]);
   useInput2((input, key) => {
     if (focusMode === "filter") {
       if (key.escape) {
         setState((prev) => ({ ...prev, focusMode: "list", filterDraft: "" }));
+      }
+      return;
+    }
+    if (focusMode === "query") {
+      if (key.escape) {
+        setState((prev) => ({ ...prev, focusMode: "list", queryDraft: "" }));
+      }
+      return;
+    }
+    if (focusMode === "search") {
+      if (key.escape) {
+        setState((prev) => ({ ...prev, focusMode: "detail", detailSearchDraft: "" }));
       }
       return;
     }
@@ -40304,77 +43105,115 @@ function LogScreen() {
       return;
     }
     if (input === "R") {
-      setState((prev) => ({
-        ...prev,
-        sources: prev.sources.map((source, index) => index === prev.activeSourceIndex ? { ...source, reverse: !source.reverse } : source)
-      }));
+      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, reverse: !source.reverse })));
       return;
     }
     if (input === "F") {
+      setState((prev) => ({ ...prev, focusMode: "filter", filterDraft: baseSource?.filter ?? "" }));
+      return;
+    }
+    if (input === "Q") {
+      setState((prev) => ({ ...prev, focusMode: "query", queryDraft: baseSource?.query ?? "" }));
+      return;
+    }
+    if (input === "M" && sources.length > 1) {
+      setState((prev) => ({ ...prev, mergedView: !prev.mergedView, statusLine: !prev.mergedView ? "Merged view enabled" : "Merged view disabled" }));
+      return;
+    }
+    if (input === "/" && focusMode === "detail") {
       setState((prev) => ({
         ...prev,
-        focusMode: "filter",
-        filterDraft: activeSource?.filter ?? ""
+        focusMode: "search",
+        detailSearchDraft: prev.detailSearchTerm
       }));
       return;
     }
     if (key.tab && !key.shift) {
       setState((prev) => ({
         ...prev,
-        activeSourceIndex: (prev.activeSourceIndex + 1) % Math.max(1, prev.sources.length)
+        activeSourceIndex: (prev.activeSourceIndex + 1) % Math.max(1, prev.sources.length),
+        mergedView: false
       }));
       return;
     }
     if (key.tab && key.shift) {
       setState((prev) => ({
         ...prev,
-        activeSourceIndex: (prev.activeSourceIndex - 1 + Math.max(1, prev.sources.length)) % Math.max(1, prev.sources.length)
+        activeSourceIndex: (prev.activeSourceIndex - 1 + Math.max(1, prev.sources.length)) % Math.max(1, prev.sources.length),
+        mergedView: false
       }));
       return;
     }
     if (input === "m") {
-      setState((prev) => ({
-        ...prev,
-        detailMode: prev.detailMode === "tree" ? "raw" : "tree"
-      }));
+      setState((prev) => ({ ...prev, detailMode: prev.detailMode === "tree" ? "raw" : "tree" }));
       return;
     }
     if (key.return) {
-      setState((prev) => ({
-        ...prev,
-        focusMode: prev.focusMode === "list" ? "detail" : "list"
-      }));
+      setState((prev) => ({ ...prev, focusMode: prev.focusMode === "list" ? "detail" : "list" }));
       return;
     }
     if (focusMode === "detail") {
+      if (pendingYankRef.current) {
+        pendingYankRef.current = false;
+        const row = jsonRows[activeSource?.detailCursor ?? 0];
+        if (!row)
+          return;
+        if (input === "y") {
+          copyValue(copyCurrentJsonValue(row), setState);
+          return;
+        }
+        if (input === "p") {
+          copyValue(copyCurrentPath(row), setState);
+          return;
+        }
+        if (input === "k") {
+          copyValue(copyCurrentKey(row), setState);
+          return;
+        }
+      }
       if (selectedEntry?.kind === "json" && detailMode === "tree") {
         if (key.upArrow || input === "k") {
-          setState((prev) => updateActiveSource(prev, (source) => ({
-            ...source,
-            detailCursor: Math.max(0, source.detailCursor - 1)
-          })));
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })));
           return;
         }
         if (key.downArrow || input === "j") {
-          setState((prev) => updateActiveSource(prev, (source) => ({
-            ...source,
-            detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1)
-          })));
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1) })));
           return;
         }
         if (input === " " || input === "l" || input === "h") {
           const row = jsonRows[activeSource?.detailCursor ?? 0];
           if (!row?.expandable)
             return;
-          setState((prev) => updateActiveSource(prev, (source) => {
+          setState((prev) => updateCurrentSource(prev, (source) => {
             const expanded = new Set(source.expandedPaths);
-            if (expanded.has(row.path)) {
+            if (expanded.has(row.path))
               expanded.delete(row.path);
-            } else {
+            else
               expanded.add(row.path);
-            }
             return { ...source, expandedPaths: [...expanded] };
           }));
+          return;
+        }
+        if (input === "C") {
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, expandedPaths: ["root"] })));
+          return;
+        }
+        if (input === "E") {
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, expandedPaths: jsonRows.filter((row) => row.expandable).map((row) => row.path) })));
+          return;
+        }
+        if (input === "n") {
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: detailSearch.next(source.detailCursor) })));
+          return;
+        }
+        if (input === "N") {
+          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: detailSearch.prev(source.detailCursor) })));
+          return;
+        }
+        if (input === "y") {
+          pendingYankRef.current = true;
+          setState((prev) => ({ ...prev, statusLine: "Yank pending: yy value, yp path, yk key" }));
+          return;
         }
       }
       if (key.escape) {
@@ -40383,130 +43222,136 @@ function LogScreen() {
       return;
     }
     if (input === "g") {
-      setState((prev) => updateActiveSource(prev, (source) => ({ ...source, selectedIndex: 0, follow: false })));
+      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: 0, follow: false })));
       return;
     }
     if (input === "G") {
-      setState((prev) => updateActiveSource(prev, (source) => ({
-        ...source,
-        selectedIndex: Math.max(0, getVisibleEntries(source).length - 1),
-        follow: true
-      })));
+      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, getVisibleEntries(source).length - 1), follow: true })));
       return;
     }
     if (key.pageUp) {
-      setState((prev) => updateActiveSource(prev, (source) => ({
-        ...source,
-        selectedIndex: Math.max(0, source.selectedIndex - 10),
-        follow: false
-      })));
+      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 10), follow: false })));
       return;
     }
     if (key.pageDown) {
-      setState((prev) => updateActiveSource(prev, (source) => ({
-        ...source,
-        selectedIndex: Math.min(Math.max(0, getVisibleEntries(source).length - 1), source.selectedIndex + 10),
-        follow: source.selectedIndex + 10 >= getVisibleEntries(source).length - 1
-      })));
+      setState((prev) => updateCurrentSource(prev, (source) => {
+        const max = Math.max(0, getVisibleEntries(source).length - 1);
+        const next = Math.min(max, source.selectedIndex + 10);
+        return { ...source, selectedIndex: next, follow: next === max };
+      }));
       return;
     }
     if (key.upArrow || input === "k") {
-      setState((prev) => updateActiveSource(prev, (source) => ({
-        ...source,
-        selectedIndex: Math.max(0, source.selectedIndex - 1),
-        follow: false
-      })));
+      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 1), follow: false })));
       return;
     }
     if (key.downArrow || input === "j") {
-      setState((prev) => updateActiveSource(prev, (source) => {
+      setState((prev) => updateCurrentSource(prev, (source) => {
         const max = Math.max(0, getVisibleEntries(source).length - 1);
         const next = Math.min(max, source.selectedIndex + 1);
-        return {
-          ...source,
-          selectedIndex: next,
-          follow: next === max
-        };
+        return { ...source, selectedIndex: next, follow: next === max };
       }));
     }
   });
-  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(FullscreenLayout, {
-    header: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Header, {
+  return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(FullscreenLayout, {
+    header: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Header, {
       source: activeSource,
       activeIndex: activeSourceIndex,
-      totalSources: sources.length
+      totalSources: sources.length,
+      mergedView
     }, undefined, false, undefined, this),
-    body: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
+    body: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
       flexDirection: "row",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
+        /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
           width: listWidth,
           flexDirection: "column",
-          children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(LogList, {
-            entries: windowed.visible,
+          children: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(LogList, {
+            entries: visibleWindow,
             selectedIndex,
-            startIndex: windowed.start,
+            startIndex: start,
             columns: listColumns
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
+        /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
           width: 2
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
+        /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
           flexGrow: 1,
           flexDirection: "column",
-          children: focusMode === "filter" ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(FilterBar, {
+          children: focusMode === "filter" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(FilterBar, {
             value: filterDraft,
             onChange: (value) => setState((prev) => ({ ...prev, filterDraft: value })),
-            onSubmit: (value) => setState((prev) => updateActiveSource({ ...prev, focusMode: "list", filterDraft: "" }, (source) => ({
+            onSubmit: (value) => setState((prev) => updateCurrentSource({ ...prev, focusMode: "list", filterDraft: "" }, (source) => ({
               ...source,
               filter: value,
               selectedIndex: 0,
               follow: false
             })))
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(DetailPane, {
+          }, undefined, false, undefined, this) : focusMode === "query" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(QueryBar, {
+            value: queryDraft,
+            suggestions: ['level = "error"', "exists(user.id)", 'message like "timeout"'],
+            onChange: (value) => setState((prev) => ({ ...prev, queryDraft: value })),
+            onSubmit: (value) => setState((prev) => updateCurrentSource({ ...prev, focusMode: "list", queryDraft: "" }, (source) => ({
+              ...source,
+              query: value,
+              selectedIndex: 0,
+              follow: false
+            })))
+          }, undefined, false, undefined, this) : focusMode === "search" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(SearchBar, {
+            value: detailSearchDraft,
+            onChange: (value) => setState((prev) => ({ ...prev, detailSearchDraft: value })),
+            onSubmit: (value) => setState((prev) => ({
+              ...prev,
+              focusMode: "detail",
+              detailSearchDraft: "",
+              detailSearchTerm: value,
+              detailSearchMatches: createDetailSearch(jsonRows, value).matches
+            }))
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(DetailPane, {
             entry: selectedEntry,
             detailMode,
             jsonRows,
-            jsonCursor: activeSource?.detailCursor ?? 0
+            jsonCursor: activeSource?.detailCursor ?? 0,
+            searchTerm: detailSearchTerm,
+            searchMatches: detailSearchMatches
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this),
-    footer: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Footer, {
+    footer: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Footer, {
       statusLine,
       fps,
       follow: activeSource?.follow ?? false,
       reverse: activeSource?.reverse ?? false,
-      focusMode
+      focusMode,
+      query: activeSource?.query ?? "",
+      search: detailSearchTerm,
+      mergedView
     }, undefined, false, undefined, this),
-    overlay: showHelp ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(HelpModal, {}, undefined, false, undefined, this) : undefined
+    overlay: showHelp ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(HelpModal, {}, undefined, false, undefined, this) : undefined
   }, undefined, false, undefined, this);
 }
-function updateActiveSource(state, updater) {
-  return {
-    ...state,
-    sources: state.sources.map((source, index) => index === state.activeSourceIndex ? updater(source) : source)
-  };
-}
-var import_react26, jsx_dev_runtime12;
+var import_react25, jsx_dev_runtime14;
 var init_LogScreen = __esm(async () => {
-  init_AppState();
+  init_clipboardy();
   init_useTerminalSize();
-  init_useVirtualWindow();
   init_sourceManager();
+  init_AppState();
   await __promiseAll([
     init_ink2(),
+    init_DetailPane(),
+    init_FilterBar(),
+    init_Footer(),
     init_FullscreenLayout(),
     init_Header(),
-    init_Footer(),
     init_HelpModal(),
-    init_FilterBar(),
     init_LogList(),
-    init_DetailPane()
+    init_QueryBar(),
+    init_SearchBar()
   ]);
-  import_react26 = __toESM(require_react(), 1);
-  jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+  import_react25 = __toESM(require_react(), 1);
+  jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
 // node_modules/commander/esm.mjs
@@ -40551,19 +43396,19 @@ async function exitWithMessage(message) {
 }
 
 // src/replLauncher.tsx
-var jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
 async function launchRepl(root, appProps, renderAndRun2) {
   const { App: App3 } = await Promise.resolve().then(() => (init_App2(), exports_App));
   const { LogScreen: LogScreen2 } = await init_LogScreen().then(() => exports_LogScreen);
-  await renderAndRun2(root, /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(App3, {
+  await renderAndRun2(root, /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(App3, {
     initialState: appProps.initialState,
-    children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(LogScreen2, {}, undefined, false, undefined, this)
+    children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(LogScreen2, {}, undefined, false, undefined, this)
   }, undefined, false, undefined, this));
 }
 
 // src/lib/config.ts
-import fs3 from "fs/promises";
-import path from "path";
+import fs6 from "fs/promises";
+import path5 from "path";
 
 // node_modules/zod/v4/classic/external.js
 var exports_external = {};
@@ -40625,7 +43470,7 @@ __export(exports_external, {
   pipe: () => pipe,
   partialRecord: () => partialRecord,
   parseAsync: () => parseAsync2,
-  parse: () => parse3,
+  parse: () => parse4,
   overwrite: () => _overwrite,
   optional: () => optional,
   object: () => object,
@@ -40822,10 +43667,10 @@ __export(exports_core2, {
   safeDecode: () => safeDecode,
   registry: () => registry,
   regexes: () => exports_regexes,
-  process: () => process13,
+  process: () => process21,
   prettifyError: () => prettifyError,
   parseAsync: () => parseAsync,
-  parse: () => parse,
+  parse: () => parse2,
   meta: () => meta,
   locales: () => exports_locales,
   isValidJWT: () => isValidJWT,
@@ -41322,18 +44167,18 @@ function assignProp(target, prop, value) {
 function mergeDefs(...defs) {
   const mergedDescriptors = {};
   for (const def of defs) {
-    const descriptors = Object.getOwnPropertyDescriptors(def);
-    Object.assign(mergedDescriptors, descriptors);
+    const descriptors2 = Object.getOwnPropertyDescriptors(def);
+    Object.assign(mergedDescriptors, descriptors2);
   }
   return Object.defineProperties({}, mergedDescriptors);
 }
 function cloneDef(schema) {
   return mergeDefs(schema._zod.def);
 }
-function getElementAtPath(obj, path) {
-  if (!path)
+function getElementAtPath(obj, path5) {
+  if (!path5)
     return obj;
-  return path.reduce((acc, key) => acc?.[key], obj);
+  return path5.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -41714,11 +44559,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path, issues) {
+function prefixIssues(path5, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path);
+    iss.path.unshift(path5);
     return iss;
   });
 }
@@ -41901,7 +44746,7 @@ function formatError(error, mapper = (issue2) => issue2.message) {
 }
 function treeifyError(error, mapper = (issue2) => issue2.message) {
   const result = { errors: [] };
-  const processError = (error2, path = []) => {
+  const processError = (error2, path5 = []) => {
     var _a, _b;
     for (const issue2 of error2.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
@@ -41911,7 +44756,7 @@ function treeifyError(error, mapper = (issue2) => issue2.message) {
       } else if (issue2.code === "invalid_element") {
         processError({ issues: issue2.issues }, issue2.path);
       } else {
-        const fullpath = [...path, ...issue2.path];
+        const fullpath = [...path5, ...issue2.path];
         if (fullpath.length === 0) {
           result.errors.push(mapper(issue2));
           continue;
@@ -41943,8 +44788,8 @@ function treeifyError(error, mapper = (issue2) => issue2.message) {
 }
 function toDotPath(_path) {
   const segs = [];
-  const path = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
-  for (const seg of path) {
+  const path5 = _path.map((seg) => typeof seg === "object" ? seg.key : seg);
+  for (const seg of path5) {
     if (typeof seg === "number")
       segs.push(`[${seg}]`);
     else if (typeof seg === "symbol")
@@ -41985,7 +44830,7 @@ var _parse = (_Err) => (schema, value, _ctx, _params) => {
   }
   return result.value;
 };
-var parse = /* @__PURE__ */ _parse($ZodRealError);
+var parse2 = /* @__PURE__ */ _parse($ZodRealError);
 var _parseAsync = (_Err) => async (schema, value, _ctx, params) => {
   const ctx = _ctx ? Object.assign(_ctx, { async: true }) : { async: true };
   let result = schema._zod.run({ value, issues: [] }, ctx);
@@ -44653,10 +47498,10 @@ var $ZodFunction = /* @__PURE__ */ $constructor("$ZodFunction", (inst, def) => {
       throw new Error("implement() must be called with a function");
     }
     return function(...args) {
-      const parsedArgs = inst._def.input ? parse(inst._def.input, args) : args;
+      const parsedArgs = inst._def.input ? parse2(inst._def.input, args) : args;
       const result = Reflect.apply(func, this, parsedArgs);
       if (inst._def.output) {
-        return parse(inst._def.output, result);
+        return parse2(inst._def.output, result);
       }
       return result;
     };
@@ -51286,7 +54131,7 @@ function initializeContext(params) {
     external: params?.external ?? undefined
   };
 }
-function process13(schema, ctx, _params = { path: [], schemaPath: [] }) {
+function process21(schema, ctx, _params = { path: [], schemaPath: [] }) {
   var _a2;
   const def = schema._zod.def;
   const seen = ctx.seen.get(schema);
@@ -51323,7 +54168,7 @@ function process13(schema, ctx, _params = { path: [], schemaPath: [] }) {
     if (parent) {
       if (!result.ref)
         result.ref = parent;
-      process13(parent, ctx, params);
+      process21(parent, ctx, params);
       ctx.seen.get(parent).isParent = true;
     }
   }
@@ -51599,14 +54444,14 @@ function isTransforming(_schema, _ctx) {
 }
 var createToJSONSchemaMethod = (schema, processors = {}) => (params) => {
   const ctx = initializeContext({ ...params, processors });
-  process13(schema, ctx);
+  process21(schema, ctx);
   extractDefs(ctx, schema);
   return finalize(ctx, schema);
 };
 var createStandardJSONSchemaMethod = (schema, io, processors = {}) => (params) => {
   const { libraryOptions, target } = params ?? {};
   const ctx = initializeContext({ ...libraryOptions ?? {}, target, io, processors });
-  process13(schema, ctx);
+  process21(schema, ctx);
   extractDefs(ctx, schema);
   return finalize(ctx, schema);
 };
@@ -51857,7 +54702,7 @@ var arrayProcessor = (schema, ctx, _json, params) => {
   if (typeof maximum === "number")
     json.maxItems = maximum;
   json.type = "array";
-  json.items = process13(def.element, ctx, { ...params, path: [...params.path, "items"] });
+  json.items = process21(def.element, ctx, { ...params, path: [...params.path, "items"] });
 };
 var objectProcessor = (schema, ctx, _json, params) => {
   const json = _json;
@@ -51866,7 +54711,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
   json.properties = {};
   const shape = def.shape;
   for (const key in shape) {
-    json.properties[key] = process13(shape[key], ctx, {
+    json.properties[key] = process21(shape[key], ctx, {
       ...params,
       path: [...params.path, "properties", key]
     });
@@ -51889,7 +54734,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
     if (ctx.io === "output")
       json.additionalProperties = false;
   } else if (def.catchall) {
-    json.additionalProperties = process13(def.catchall, ctx, {
+    json.additionalProperties = process21(def.catchall, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
@@ -51898,7 +54743,7 @@ var objectProcessor = (schema, ctx, _json, params) => {
 var unionProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
   const isExclusive = def.inclusive === false;
-  const options = def.options.map((x, i) => process13(x, ctx, {
+  const options = def.options.map((x, i) => process21(x, ctx, {
     ...params,
     path: [...params.path, isExclusive ? "oneOf" : "anyOf", i]
   }));
@@ -51910,11 +54755,11 @@ var unionProcessor = (schema, ctx, json, params) => {
 };
 var intersectionProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  const a = process13(def.left, ctx, {
+  const a = process21(def.left, ctx, {
     ...params,
     path: [...params.path, "allOf", 0]
   });
-  const b = process13(def.right, ctx, {
+  const b = process21(def.right, ctx, {
     ...params,
     path: [...params.path, "allOf", 1]
   });
@@ -51931,11 +54776,11 @@ var tupleProcessor = (schema, ctx, _json, params) => {
   json.type = "array";
   const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
   const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
-  const prefixItems = def.items.map((x, i) => process13(x, ctx, {
+  const prefixItems = def.items.map((x, i) => process21(x, ctx, {
     ...params,
     path: [...params.path, prefixPath, i]
   }));
-  const rest = def.rest ? process13(def.rest, ctx, {
+  const rest = def.rest ? process21(def.rest, ctx, {
     ...params,
     path: [...params.path, restPath, ...ctx.target === "openapi-3.0" ? [def.items.length] : []]
   }) : null;
@@ -51975,7 +54820,7 @@ var recordProcessor = (schema, ctx, _json, params) => {
   const keyBag = keyType._zod.bag;
   const patterns = keyBag?.patterns;
   if (def.mode === "loose" && patterns && patterns.size > 0) {
-    const valueSchema = process13(def.valueType, ctx, {
+    const valueSchema = process21(def.valueType, ctx, {
       ...params,
       path: [...params.path, "patternProperties", "*"]
     });
@@ -51985,12 +54830,12 @@ var recordProcessor = (schema, ctx, _json, params) => {
     }
   } else {
     if (ctx.target === "draft-07" || ctx.target === "draft-2020-12") {
-      json.propertyNames = process13(def.keyType, ctx, {
+      json.propertyNames = process21(def.keyType, ctx, {
         ...params,
         path: [...params.path, "propertyNames"]
       });
     }
-    json.additionalProperties = process13(def.valueType, ctx, {
+    json.additionalProperties = process21(def.valueType, ctx, {
       ...params,
       path: [...params.path, "additionalProperties"]
     });
@@ -52005,7 +54850,7 @@ var recordProcessor = (schema, ctx, _json, params) => {
 };
 var nullableProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  const inner = process13(def.innerType, ctx, params);
+  const inner = process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   if (ctx.target === "openapi-3.0") {
     seen.ref = def.innerType;
@@ -52016,20 +54861,20 @@ var nullableProcessor = (schema, ctx, json, params) => {
 };
 var nonoptionalProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var defaultProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   json.default = JSON.parse(JSON.stringify(def.defaultValue));
 };
 var prefaultProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   if (ctx.io === "input")
@@ -52037,7 +54882,7 @@ var prefaultProcessor = (schema, ctx, json, params) => {
 };
 var catchProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   let catchValue;
@@ -52051,32 +54896,32 @@ var catchProcessor = (schema, ctx, json, params) => {
 var pipeProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
   const innerType = ctx.io === "input" ? def.in._zod.def.type === "transform" ? def.out : def.in : def.out;
-  process13(innerType, ctx, params);
+  process21(innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = innerType;
 };
 var readonlyProcessor = (schema, ctx, json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
   json.readOnly = true;
 };
 var promiseProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var optionalProcessor = (schema, ctx, _json, params) => {
   const def = schema._zod.def;
-  process13(def.innerType, ctx, params);
+  process21(def.innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = def.innerType;
 };
 var lazyProcessor = (schema, ctx, _json, params) => {
   const innerType = schema._zod.innerType;
-  process13(innerType, ctx, params);
+  process21(innerType, ctx, params);
   const seen = ctx.seen.get(schema);
   seen.ref = innerType;
 };
@@ -52128,7 +54973,7 @@ function toJSONSchema(input, params) {
     const defs = {};
     for (const entry of registry2._idmap.entries()) {
       const [_, schema] = entry;
-      process13(schema, ctx2);
+      process21(schema, ctx2);
     }
     const schemas = {};
     const external = {
@@ -52151,7 +54996,7 @@ function toJSONSchema(input, params) {
     return { schemas };
   }
   const ctx = initializeContext({ ...params, processors: allProcessors });
-  process13(input, ctx);
+  process21(input, ctx);
   extractDefs(ctx, input);
   return finalize(ctx, input);
 }
@@ -52197,7 +55042,7 @@ class JSONSchemaGenerator {
     });
   }
   process(schema, _params = { path: [], schemaPath: [] }) {
-    return process13(schema, this.ctx, _params);
+    return process21(schema, this.ctx, _params);
   }
   emit(schema, _params) {
     if (_params) {
@@ -52496,7 +55341,7 @@ var ZodRealError = $constructor("ZodError", initializer2, {
 });
 
 // node_modules/zod/v4/classic/parse.js
-var parse3 = /* @__PURE__ */ _parse(ZodRealError);
+var parse4 = /* @__PURE__ */ _parse(ZodRealError);
 var parseAsync2 = /* @__PURE__ */ _parseAsync(ZodRealError);
 var safeParse2 = /* @__PURE__ */ _safeParse(ZodRealError);
 var safeParseAsync2 = /* @__PURE__ */ _safeParseAsync(ZodRealError);
@@ -52539,7 +55384,7 @@ var ZodType = /* @__PURE__ */ $constructor("ZodType", (inst, def) => {
     reg.add(inst, meta2);
     return inst;
   };
-  inst.parse = (data, params) => parse3(inst, data, params, { callee: inst.parse });
+  inst.parse = (data, params) => parse4(inst, data, params, { callee: inst.parse });
   inst.safeParse = (data, params) => safeParse2(inst, data, params);
   inst.parseAsync = async (data, params) => parseAsync2(inst, data, params, { callee: inst.parseAsync });
   inst.safeParseAsync = async (data, params) => safeParseAsync2(inst, data, params);
@@ -53691,13 +56536,13 @@ function resolveRef(ref, ctx) {
   if (!ref.startsWith("#")) {
     throw new Error("External $ref is not supported, only local refs (#/...) are allowed");
   }
-  const path = ref.slice(1).split("/").filter(Boolean);
-  if (path.length === 0) {
+  const path5 = ref.slice(1).split("/").filter(Boolean);
+  if (path5.length === 0) {
     return ctx.rootSchema;
   }
   const defsKey = ctx.version === "draft-2020-12" ? "$defs" : "definitions";
-  if (path[0] === defsKey) {
-    const key = path[1];
+  if (path5[0] === defsKey) {
+    const key = path5[1];
     if (!key || !ctx.defs[key]) {
       throw new Error(`Reference not found: ${ref}`);
     }
@@ -54118,14 +56963,14 @@ function stripJsonComments(text) {
 }
 async function loadConfig(cwd2) {
   const candidates = [
-    path.join(cwd2, ".log.jsonc"),
-    path.join(process.env.HOME ?? "", ".log.jsonc")
+    path5.join(cwd2, ".log.jsonc"),
+    path5.join(process.env.HOME ?? "", ".log.jsonc")
   ];
   for (const candidate of candidates) {
     if (!candidate)
       continue;
     try {
-      const text = await fs3.readFile(candidate, "utf8");
+      const text = await fs6.readFile(candidate, "utf8");
       const parsed = JSON.parse(stripJsonComments(text));
       return configSchema.parse(parsed);
     } catch {}
@@ -54134,14 +56979,14 @@ async function loadConfig(cwd2) {
 }
 
 // src/lib/sources.ts
-import fs4 from "fs";
-import path2 from "path";
+import fs7 from "fs";
+import path6 from "path";
 function resolveSources(input) {
   const specs = [];
   for (const file2 of input.files) {
     specs.push({
       id: createId("src"),
-      label: path2.basename(file2),
+      label: path6.basename(file2),
       kind: "file",
       filePath: file2
     });
@@ -54176,7 +57021,7 @@ function validateSources(sources) {
     return "No input sources provided. Pass files, --url, --cmd, or pipe stdin.";
   }
   for (const source of sources) {
-    if (source.kind === "file" && source.filePath && !fs4.existsSync(source.filePath)) {
+    if (source.kind === "file" && source.filePath && !fs7.existsSync(source.filePath)) {
       return `File not found: ${source.filePath}`;
     }
   }
@@ -54192,6 +57037,7 @@ function createSourceState(spec) {
     jsonCount: 0,
     textCount: 0,
     filter: "",
+    query: "",
     follow: true,
     reverse: false,
     selectedIndex: 0,
@@ -54203,9 +57049,14 @@ function getDefaultAppState(sources, config2) {
   return {
     sources: sources.map(createSourceState),
     activeSourceIndex: 0,
+    mergedView: false,
     focusMode: "list",
     detailMode: "tree",
     filterDraft: "",
+    queryDraft: "",
+    detailSearchDraft: "",
+    detailSearchTerm: "",
+    detailSearchMatches: [],
     statusLine: `Loaded ${sources.length} source(s).`,
     fps: 0,
     lastFlushSize: 0,
