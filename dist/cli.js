@@ -41654,27 +41654,67 @@ var init_ansi = __esm(() => {
   };
 });
 
+// src/lib/textHighlight.ts
+function buildHighlightedSegments(text, term) {
+  if (!term) {
+    return [{ text }];
+  }
+  const loweredText = text.toLowerCase();
+  const loweredTerm = term.toLowerCase();
+  const segments = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    const matchIndex = loweredText.indexOf(loweredTerm, cursor);
+    if (matchIndex === -1) {
+      segments.push({ text: text.slice(cursor) });
+      break;
+    }
+    if (matchIndex > cursor) {
+      segments.push({ text: text.slice(cursor, matchIndex) });
+    }
+    segments.push({
+      text: text.slice(matchIndex, matchIndex + term.length),
+      highlight: true
+    });
+    cursor = matchIndex + term.length;
+  }
+  return segments.filter((segment) => segment.text.length > 0);
+}
+
 // src/components/TextDetail.tsx
 function TextDetail(props) {
   const segments = parseAnsiText(props.text);
   if (segments.length === 0) {
-    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-      wrap: "wrap",
-      children: props.text
+    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(PlainText, {
+      text: props.text,
+      searchTerm: props.searchTerm
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(BoxText, {
-    segments
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(AnsiText, {
+    segments,
+    searchTerm: props.searchTerm
   }, undefined, false, undefined, this);
 }
-function BoxText(props) {
+function PlainText(props) {
+  const segments = buildHighlightedSegments(props.text, props.searchTerm ?? "");
   return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
     wrap: "wrap",
-    children: props.segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-      color: segment.color,
-      bold: segment.bold,
+    children: segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+      backgroundColor: segment.highlight ? "yellow" : undefined,
+      color: segment.highlight ? "black" : undefined,
       children: segment.text
     }, `${segment.text}-${index}`, false, undefined, this))
+  }, undefined, false, undefined, this);
+}
+function AnsiText(props) {
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+    wrap: "wrap",
+    children: props.segments.flatMap((segment, index) => buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+      color: piece.highlight ? "black" : segment.color,
+      backgroundColor: piece.highlight ? "yellow" : undefined,
+      bold: segment.bold,
+      children: piece.text
+    }, `${segment.text}-${index}-${pieceIndex}`, false, undefined, this)))
   }, undefined, false, undefined, this);
 }
 var jsx_dev_runtime4;
@@ -41713,15 +41753,10 @@ function DetailPane(props) {
           String(props.entry.levelNormalized)
         ]
       }, undefined, true, undefined, this),
-      props.searchTerm ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
-        children: [
-          "search: ",
-          props.searchTerm,
-          " \xB7 matches: ",
-          props.searchMatches.length
-        ]
-      }, undefined, true, undefined, this) : null,
+        children: props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}` : "search:off"
+      }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
         marginTop: 1,
         flexDirection: "column",
@@ -41729,7 +41764,8 @@ function DetailPane(props) {
           rows: props.jsonRows,
           cursor: props.jsonCursor
         }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TextDetail, {
-          text: props.entry.raw
+          text: props.entry.raw,
+          searchTerm: props.searchTerm
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this)
     ]
@@ -41889,38 +41925,37 @@ function Footer(props) {
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         children: props.statusLine
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
-        justifyContent: "space-between",
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
         children: [
-          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "focus:",
-              props.focusMode,
-              " \xB7 follow:",
-              props.follow ? "on" : "off",
-              " \xB7 reverse:",
-              props.reverse ? "on" : "off",
-              " \xB7 merged:",
-              props.mergedView ? "on" : "off"
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
-            dimColor: true,
-            children: [
-              "query:",
-              props.query ? "on" : "off",
-              " \xB7 search:",
-              props.search ? "on" : "off",
-              " \xB7 fps:",
-              props.fps
-            ]
-          }, undefined, true, undefined, this)
+          "focus:",
+          props.focusMode,
+          " \xB7 follow:",
+          props.follow ? "on" : "off",
+          " \xB7 reverse:",
+          props.reverse ? "on" : "off"
         ]
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
-        children: "j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold \xB7 Tab source \xB7 M merged \xB7 yy/yp/yk yank \xB7 ? help \xB7 q quit"
+        children: [
+          "merged:",
+          props.mergedView ? "on" : "off",
+          " \xB7 query:",
+          props.query ? "on" : "off",
+          " \xB7 search:",
+          props.search ? "on" : "off",
+          " \xB7 fps:",
+          props.fps
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: "j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: "Tab source \xB7 RightArrow/Ctrl+Y accept hint \xB7 M merged \xB7 yy/yp/yk yank \xB7 ? help \xB7 q quit"
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
@@ -42120,10 +42155,47 @@ var init_LogList = __esm(async () => {
   jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
+// src/lib/queryAutocomplete.ts
+function buildQuerySuggestions(entries, input) {
+  const query = input.trim().toLowerCase();
+  const fieldNames = new Set;
+  for (const entry of entries) {
+    for (const key of Object.keys(entry.fieldIndex)) {
+      fieldNames.add(key);
+    }
+  }
+  const fieldSuggestions = [...fieldNames].sort().map((field) => `${field} = ""`);
+  const combined = [...DEFAULT_SNIPPETS, ...fieldSuggestions];
+  if (!query) {
+    return combined.slice(0, 6);
+  }
+  return combined.filter((item) => item.toLowerCase().includes(query)).slice(0, 8);
+}
+function buildInlineCompletion(input, suggestion) {
+  if (!input) {
+    return suggestion;
+  }
+  if (suggestion.toLowerCase().startsWith(input.toLowerCase())) {
+    return suggestion.slice(input.length);
+  }
+  return "";
+}
+var DEFAULT_SNIPPETS;
+var init_queryAutocomplete = __esm(() => {
+  DEFAULT_SNIPPETS = [
+    'level = "error"',
+    "exists(user.id)",
+    'level in ("warn","error")',
+    'message like "timeout"',
+    "message =~ /health/"
+  ];
+});
+
 // src/components/QueryBar.tsx
 function QueryBar(props) {
   const visibleSuggestions = props.suggestions.slice(0, 5);
   const activeSuggestion = visibleSuggestions[props.selectedSuggestionIndex] ?? "";
+  const inlineCompletion = buildInlineCompletion(props.value, activeSuggestion);
   return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -42144,7 +42216,11 @@ function QueryBar(props) {
             value: props.value,
             onChange: props.onChange,
             onSubmit: props.onSubmit
-          }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          inlineCompletion ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
+            dimColor: true,
+            children: inlineCompletion
+          }, undefined, false, undefined, this) : null
         ]
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
@@ -42171,6 +42247,7 @@ function QueryBar(props) {
 }
 var jsx_dev_runtime12;
 var init_QueryBar = __esm(async () => {
+  init_queryAutocomplete();
   await __promiseAll([
     init_build3(),
     init_ink2()
@@ -42578,33 +42655,6 @@ function buildQuery(input) {
   const expression = parse(tokenize4(trimmed));
   return (entry) => evaluate(expression, entry);
 }
-
-// src/lib/queryAutocomplete.ts
-function buildQuerySuggestions(entries, input) {
-  const query = input.trim().toLowerCase();
-  const fieldNames = new Set;
-  for (const entry of entries) {
-    for (const key of Object.keys(entry.fieldIndex)) {
-      fieldNames.add(key);
-    }
-  }
-  const fieldSuggestions = [...fieldNames].sort().map((field) => `${field} = ""`);
-  const combined = [...DEFAULT_SNIPPETS, ...fieldSuggestions];
-  if (!query) {
-    return combined.slice(0, 6);
-  }
-  return combined.filter((item) => item.toLowerCase().includes(query)).slice(0, 8);
-}
-var DEFAULT_SNIPPETS;
-var init_queryAutocomplete = __esm(() => {
-  DEFAULT_SNIPPETS = [
-    'level = "error"',
-    "exists(user.id)",
-    'level in ("warn","error")',
-    'message like "timeout"',
-    "message =~ /health/"
-  ];
-});
 
 // src/lib/ringBuffer.ts
 class RingBuffer {
@@ -43228,8 +43278,17 @@ function LogScreen() {
         const nextIndex = key.shift ? (querySuggestionIndex - 1 + querySuggestions.length) % querySuggestions.length : (querySuggestionIndex + 1) % querySuggestions.length;
         setState((prev) => ({
           ...prev,
-          querySuggestionIndex: nextIndex,
-          queryDraft: querySuggestions[nextIndex] ?? prev.queryDraft
+          querySuggestionIndex: nextIndex
+        }));
+        return;
+      }
+      if (key.rightArrow || key.ctrl && input === "y") {
+        const suggestion = querySuggestions[selectedSuggestionIndex];
+        if (!suggestion)
+          return;
+        setState((prev) => ({
+          ...prev,
+          queryDraft: suggestion
         }));
         return;
       }

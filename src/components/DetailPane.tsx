@@ -27,16 +27,16 @@ export function DetailPane(props: {
         {props.entry.prefix ? `${props.entry.prefix} · ` : ""}
         {props.entry.timeText ?? "no-time"} · {String(props.entry.levelNormalized)}
       </Text>
-      {props.searchTerm ? (
-        <Text dimColor>
-          search: {props.searchTerm} · matches: {props.searchMatches.length}
-        </Text>
-      ) : null}
+      <Text dimColor>
+        {props.searchTerm
+          ? `search:${props.searchTerm} · matches:${props.searchMatches.length}`
+          : "search:off"}
+      </Text>
       <Box marginTop={1} flexDirection="column">
         {props.entry.kind === "json" && props.detailMode === "tree" ? (
           <JsonTree rows={props.jsonRows} cursor={props.jsonCursor} />
         ) : (
-          <TextDetail text={props.entry.raw} />
+          <TextDetail text={props.entry.raw} searchTerm={props.searchTerm} />
         )}
       </Box>
     </Box>

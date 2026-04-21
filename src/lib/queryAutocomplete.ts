@@ -28,3 +28,13 @@ export function buildQuerySuggestions(entries: LogEntry[], input: string): strin
 
   return combined.filter(item => item.toLowerCase().includes(query)).slice(0, 8);
 }
+
+export function buildInlineCompletion(input: string, suggestion: string): string {
+  if (!input) {
+    return suggestion;
+  }
+  if (suggestion.toLowerCase().startsWith(input.toLowerCase())) {
+    return suggestion.slice(input.length);
+  }
+  return "";
+}

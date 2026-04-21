@@ -222,7 +222,15 @@ export function LogScreen(): React.ReactNode {
         setState(prev => ({
           ...prev,
           querySuggestionIndex: nextIndex,
-          queryDraft: querySuggestions[nextIndex] ?? prev.queryDraft,
+        }));
+        return;
+      }
+      if (key.rightArrow || (key.ctrl && input === "y")) {
+        const suggestion = querySuggestions[selectedSuggestionIndex];
+        if (!suggestion) return;
+        setState(prev => ({
+          ...prev,
+          queryDraft: suggestion,
         }));
         return;
       }

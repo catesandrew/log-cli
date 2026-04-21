@@ -1,6 +1,7 @@
 import React from "react";
 import TextInput from "ink-text-input";
 import { Box, Text } from "../ink";
+import { buildInlineCompletion } from "../lib/queryAutocomplete";
 
 export function QueryBar(props: {
   value: string;
@@ -11,6 +12,7 @@ export function QueryBar(props: {
 }): React.ReactNode {
   const visibleSuggestions = props.suggestions.slice(0, 5);
   const activeSuggestion = visibleSuggestions[props.selectedSuggestionIndex] ?? "";
+  const inlineCompletion = buildInlineCompletion(props.value, activeSuggestion);
   return (
     <Box flexDirection="column">
       <Text color="cyan">Query mode</Text>
@@ -20,6 +22,7 @@ export function QueryBar(props: {
       <Box>
         <Text>query&gt; </Text>
         <TextInput value={props.value} onChange={props.onChange} onSubmit={props.onSubmit} />
+        {inlineCompletion ? <Text dimColor>{inlineCompletion}</Text> : null}
       </Box>
       <Text dimColor>
         Tab/Shift+Tab cycles suggestions. Enter applies current query. Active hint: {activeSuggestion || "none"}

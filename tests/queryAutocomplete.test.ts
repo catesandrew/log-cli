@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildQuerySuggestions } from "../src/lib/queryAutocomplete.ts";
+import { buildInlineCompletion, buildQuerySuggestions } from "../src/lib/queryAutocomplete.ts";
 import { parseLine } from "../src/lib/parseLine.ts";
 
 describe("buildQuerySuggestions", () => {
@@ -23,5 +23,10 @@ describe("buildQuerySuggestions", () => {
     const suggestions = buildQuerySuggestions(entries, "");
     expect(suggestions).toContain('level = "error"');
     expect(suggestions).toContain("exists(user.id)");
+  });
+
+  test("builds an inline completion suffix from the active suggestion", () => {
+    expect(buildInlineCompletion('lev', 'level = "error"')).toBe('el = "error"');
+    expect(buildInlineCompletion('message', 'level = "error"')).toBe("");
   });
 });

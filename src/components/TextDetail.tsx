@@ -1,26 +1,51 @@
 import React from "react";
 import { Text } from "../ink";
 import { parseAnsiText } from "../lib/ansi";
+import { buildHighlightedSegments } from "../lib/textHighlight";
 
-export function TextDetail(props: { text: string }): React.ReactNode {
+export function TextDetail(props: { text: string; searchTerm?: string }): React.ReactNode {
   const segments = parseAnsiText(props.text);
   if (segments.length === 0) {
-    return <Text wrap="wrap">{props.text}</Text>;
+    return <PlainText text={props.text} searchTerm={props.searchTerm} />;
   }
 
   return (
-    <BoxText segments={segments} />
+    <AnsiText segments={segments} searchTerm={props.searchTerm} />
   );
 }
 
-function BoxText(props: { segments: ReturnType<typeof parseAnsiText> }): React.ReactNode {
+function PlainText(props: { text: string; searchTerm?: string }): React.ReactNode {
+  const segments = buildHighlightedSegments(props.text, props.searchTerm ?? "");
   return (
     <Text wrap="wrap">
-      {props.segments.map((segment, index) => (
-        <Text key={`${segment.text}-${index}`} color={segment.color} bold={segment.bold}>
+      {segments.map((segment, index) => (
+        <Text
+          key={`${segment.text}-${index}`}
+          backgroundColor={segment.highlight ? "yellow" : undefined}
+          color={segment.highlight ? "black" : undefined}
+        >
           {segment.text}
         </Text>
       ))}
+    </Text>
+  );
+}
+
+function AnsiText(props: { segments: ReturnType<typeof parseAnsiText>; searchTerm?: string }): React.ReactNode {
+  return (
+    <Text wrap="wrap">
+      {props.segments.flatMap((segment, index) =>
+        buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => (
+          <Text
+            key={`${segment.text}-${index}-${pieceIndex}`}
+            color={piece.highlight ? "black" : segment.color}
+            backgroundColor={piece.highlight ? "yellow" : undefined}
+            bold={segment.bold}
+          >
+            {piece.text}
+          </Text>
+        )),
+      )}
     </Text>
   );
 }
