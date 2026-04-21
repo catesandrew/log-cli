@@ -16,7 +16,7 @@ import { buildFilter } from "../lib/filter";
 import { applyEntryBatch } from "../lib/ingestState";
 import { flattenJsonTree } from "../lib/jsonTree";
 import { computePaneWidths } from "../lib/layout";
-import { mergeEntriesByTime } from "../lib/merge";
+import { createMergedSourceState } from "../lib/mergedSource";
 import { buildQuery } from "../lib/query";
 import { applySuggestionToQuery, buildQuerySuggestions } from "../lib/queryAutocomplete";
 import { startSourceManager } from "../lib/sourceManager";
@@ -30,33 +30,6 @@ function getVisibleEntries(source: SourceState | undefined): LogEntry[] {
   const query = buildQuery(source.query);
   const filtered = source.entries.filter(entry => filter(entry) && query(entry));
   return source.reverse ? [...filtered].reverse() : filtered;
-}
-
-function getSyntheticMergedSource(sources: SourceState[]): SourceState {
-  const seed = sources[0] ?? {
-    spec: { id: "merged", label: "all sources", kind: "file" as const },
-    entries: [],
-    droppedCount: 0,
-    jsonCount: 0,
-    textCount: 0,
-    filter: "",
-    query: "",
-    follow: true,
-    reverse: false,
-    selectedIndex: 0,
-    expandedPaths: ["root"],
-    detailCursor: 0,
-  };
-  const mergedEntries = mergeEntriesByTime(sources.map(source => source.entries), seed.reverse);
-  const jsonCount = mergedEntries.filter(entry => entry.kind === "json").length;
-  return {
-    ...seed,
-    spec: { id: "merged", label: "all sources", kind: "file" },
-    entries: mergedEntries,
-    droppedCount: sources.reduce((sum, source) => sum + source.droppedCount, 0),
-    jsonCount,
-    textCount: mergedEntries.length - jsonCount,
-  };
 }
 
 function updateCurrentSource(state: AppState, updater: (source: SourceState) => SourceState): AppState {
@@ -89,6 +62,14 @@ export function LogScreen(): React.ReactNode {
   const sources = useAppState(state => state.sources);
   const activeSourceIndex = useAppState(state => state.activeSourceIndex);
   const mergedView = useAppState(state => state.mergedView);
+  const mergeIgnored = useAppState(state => state.mergeIgnored);
+  const mergedSelectedIndex = useAppState(state => state.mergedSelectedIndex);
+  const mergedFollow = useAppState(state => state.mergedFollow);
+  const mergedReverse = useAppState(state => state.mergedReverse);
+  const mergedFilter = useAppState(state => state.mergedFilter);
+  const mergedQuery = useAppState(state => state.mergedQuery);
+  const mergedExpandedPaths = useAppState(state => state.mergedExpandedPaths);
+  const mergedDetailCursor = useAppState(state => state.mergedDetailCursor);
   const focusMode = useAppState(state => state.focusMode);
   const detailMode = useAppState(state => state.detailMode);
   const filterDraft = useAppState(state => state.filterDraft);
@@ -97,6 +78,7 @@ export function LogScreen(): React.ReactNode {
   const detailSearchDraft = useAppState(state => state.detailSearchDraft);
   const detailSearchTerm = useAppState(state => state.detailSearchTerm);
   const detailSearchMatches = useAppState(state => state.detailSearchMatches);
+  const startupStatus = useAppState(state => state.startupStatus);
   const statusLine = useAppState(state => state.statusLine);
   const fps = useAppState(state => state.fps);
   const lastFlushSize = useAppState(state => state.lastFlushSize);
@@ -105,8 +87,30 @@ export function LogScreen(): React.ReactNode {
 
   const baseSource = sources[activeSourceIndex];
   const activeSource = useMemo(
-    () => (mergedView ? getSyntheticMergedSource(sources) : baseSource),
-    [baseSource, mergedView, sources],
+    () =>
+      mergedView
+        ? createMergedSourceState(sources, {
+            selectedIndex: mergedSelectedIndex,
+            follow: mergedFollow,
+            reverse: mergedReverse,
+            filter: mergedFilter,
+            query: mergedQuery,
+            expandedPaths: mergedExpandedPaths,
+            detailCursor: mergedDetailCursor,
+          })
+        : baseSource,
+    [
+      baseSource,
+      mergedDetailCursor,
+      mergedExpandedPaths,
+      mergedFilter,
+      mergedFollow,
+      mergedQuery,
+      mergedReverse,
+      mergedSelectedIndex,
+      mergedView,
+      sources,
+    ],
   );
   const visibleEntries = useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
@@ -269,12 +273,20 @@ export function LogScreen(): React.ReactNode {
     }
 
     if (input === "R") {
-      setState(prev => updateCurrentSource(prev, source => ({ ...source, reverse: !source.reverse })));
+      setState(prev =>
+        prev.mergedView
+          ? { ...prev, mergedReverse: !prev.mergedReverse }
+          : updateCurrentSource(prev, source => ({ ...source, reverse: !source.reverse })),
+      );
       return;
     }
 
     if (input === "F") {
-      setState(prev => ({ ...prev, focusMode: "filter", filterDraft: baseSource?.filter ?? "" }));
+      setState(prev => ({
+        ...prev,
+        focusMode: "filter",
+        filterDraft: prev.mergedView ? prev.mergedFilter : baseSource?.filter ?? "",
+      }));
       return;
     }
 
@@ -282,7 +294,7 @@ export function LogScreen(): React.ReactNode {
       setState(prev => ({
         ...prev,
         focusMode: "query",
-        queryDraft: baseSource?.query ?? "",
+        queryDraft: prev.mergedView ? prev.mergedQuery : baseSource?.query ?? "",
         querySuggestionIndex: 0,
       }));
       return;
@@ -351,52 +363,98 @@ export function LogScreen(): React.ReactNode {
 
         if (selectedEntry?.kind === "json" && detailMode === "tree") {
         if (key.upArrow || input === "k") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })));
+          setState(prev =>
+            prev.mergedView
+              ? { ...prev, mergedDetailCursor: Math.max(0, prev.mergedDetailCursor - 1) }
+              : updateCurrentSource(prev, source => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })),
+          );
           return;
         }
         if (key.downArrow || input === "j") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1) })));
+          setState(prev =>
+            prev.mergedView
+              ? {
+                  ...prev,
+                  mergedDetailCursor: Math.min(
+                    Math.max(0, jsonRows.length - 1),
+                    prev.mergedDetailCursor + 1,
+                  ),
+                }
+              : updateCurrentSource(prev, source => ({ ...source, detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1) })),
+          );
           return;
         }
         if (input === " " || input === "l" || input === "h") {
           const row = jsonRows[activeSource?.detailCursor ?? 0];
           if (!row?.expandable) return;
-          setState(prev => updateCurrentSource(prev, source => {
-            const expanded = new Set(source.expandedPaths);
-            if (expanded.has(row.path)) expanded.delete(row.path); else expanded.add(row.path);
-            return { ...source, expandedPaths: [...expanded] };
-          }));
+          setState(prev => {
+            if (prev.mergedView) {
+              const expanded = new Set(prev.mergedExpandedPaths);
+              if (expanded.has(row.path)) expanded.delete(row.path); else expanded.add(row.path);
+              return { ...prev, mergedExpandedPaths: [...expanded] };
+            }
+            return updateCurrentSource(prev, source => {
+              const expanded = new Set(source.expandedPaths);
+              if (expanded.has(row.path)) expanded.delete(row.path); else expanded.add(row.path);
+              return { ...source, expandedPaths: [...expanded] };
+            });
+          });
           return;
         }
         if (input === "C") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, expandedPaths: ["root"] })));
+          setState(prev =>
+            prev.mergedView
+              ? { ...prev, mergedExpandedPaths: ["root"] }
+              : updateCurrentSource(prev, source => ({ ...source, expandedPaths: ["root"] })),
+          );
           return;
         }
         if (input === "E") {
-          setState(prev => updateCurrentSource(prev, source => ({ ...source, expandedPaths: jsonRows.filter(row => row.expandable).map(row => row.path) })));
+          const expandedPaths = jsonRows.filter(row => row.expandable).map(row => row.path);
+          setState(prev =>
+            prev.mergedView
+              ? { ...prev, mergedExpandedPaths: expandedPaths }
+              : updateCurrentSource(prev, source => ({ ...source, expandedPaths })),
+          );
           return;
         }
         if (input === "n") {
           setState(prev =>
-            updateCurrentSource(prev, source => ({
-              ...source,
-              detailCursor:
-                selectedEntry?.kind === "json" && detailMode === "tree"
-                  ? detailSearch.next(source.detailCursor)
-                  : textSearch.next(source.detailCursor),
-            })),
+            prev.mergedView
+              ? {
+                  ...prev,
+                  mergedDetailCursor:
+                    selectedEntry?.kind === "json" && detailMode === "tree"
+                      ? detailSearch.next(prev.mergedDetailCursor)
+                      : textSearch.next(prev.mergedDetailCursor),
+                }
+              : updateCurrentSource(prev, source => ({
+                  ...source,
+                  detailCursor:
+                    selectedEntry?.kind === "json" && detailMode === "tree"
+                      ? detailSearch.next(source.detailCursor)
+                      : textSearch.next(source.detailCursor),
+                })),
           );
           return;
         }
         if (input === "N") {
           setState(prev =>
-            updateCurrentSource(prev, source => ({
-              ...source,
-              detailCursor:
-                selectedEntry?.kind === "json" && detailMode === "tree"
-                  ? detailSearch.prev(source.detailCursor)
-                  : textSearch.prev(source.detailCursor),
-            })),
+            prev.mergedView
+              ? {
+                  ...prev,
+                  mergedDetailCursor:
+                    selectedEntry?.kind === "json" && detailMode === "tree"
+                      ? detailSearch.prev(prev.mergedDetailCursor)
+                      : textSearch.prev(prev.mergedDetailCursor),
+                }
+              : updateCurrentSource(prev, source => ({
+                  ...source,
+                  detailCursor:
+                    selectedEntry?.kind === "json" && detailMode === "tree"
+                      ? detailSearch.prev(source.detailCursor)
+                      : textSearch.prev(source.detailCursor),
+                })),
           );
           return;
         }
@@ -413,40 +471,94 @@ export function LogScreen(): React.ReactNode {
     }
 
     if (input === "g") {
-      setState(prev => updateCurrentSource(prev, source => ({ ...source, selectedIndex: 0, follow: false })));
+      setState(prev =>
+        prev.mergedView
+          ? { ...prev, mergedSelectedIndex: 0, mergedFollow: false }
+          : updateCurrentSource(prev, source => ({ ...source, selectedIndex: 0, follow: false })),
+      );
       return;
     }
 
     if (input === "G") {
-      setState(prev => updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, getVisibleEntries(source).length - 1), follow: true })));
+      setState(prev =>
+        prev.mergedView
+          ? {
+              ...prev,
+              mergedSelectedIndex: Math.max(0, visibleEntries.length - 1),
+              mergedFollow: true,
+            }
+          : updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, getVisibleEntries(source).length - 1), follow: true })),
+      );
       return;
     }
 
     if (key.pageUp) {
-      setState(prev => updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 10), follow: false })));
+      setState(prev =>
+        prev.mergedView
+          ? {
+              ...prev,
+              mergedSelectedIndex: Math.max(0, prev.mergedSelectedIndex - 10),
+              mergedFollow: false,
+            }
+          : updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 10), follow: false })),
+      );
       return;
     }
 
     if (key.pageDown) {
-      setState(prev => updateCurrentSource(prev, source => {
-        const max = Math.max(0, getVisibleEntries(source).length - 1);
-        const next = Math.min(max, source.selectedIndex + 10);
-        return { ...source, selectedIndex: next, follow: next === max };
-      }));
+      setState(prev =>
+        prev.mergedView
+          ? {
+              ...prev,
+              mergedSelectedIndex: Math.min(
+                Math.max(0, visibleEntries.length - 1),
+                prev.mergedSelectedIndex + 10,
+              ),
+              mergedFollow:
+                Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 10) ===
+                Math.max(0, visibleEntries.length - 1),
+            }
+          : updateCurrentSource(prev, source => {
+              const max = Math.max(0, getVisibleEntries(source).length - 1);
+              const next = Math.min(max, source.selectedIndex + 10);
+              return { ...source, selectedIndex: next, follow: next === max };
+            }),
+      );
       return;
     }
 
     if (key.upArrow || input === "k") {
-      setState(prev => updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 1), follow: false })));
+      setState(prev =>
+        prev.mergedView
+          ? {
+              ...prev,
+              mergedSelectedIndex: Math.max(0, prev.mergedSelectedIndex - 1),
+              mergedFollow: false,
+            }
+          : updateCurrentSource(prev, source => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 1), follow: false })),
+      );
       return;
     }
 
     if (key.downArrow || input === "j") {
-      setState(prev => updateCurrentSource(prev, source => {
-        const max = Math.max(0, getVisibleEntries(source).length - 1);
-        const next = Math.min(max, source.selectedIndex + 1);
-        return { ...source, selectedIndex: next, follow: next === max };
-      }));
+      setState(prev =>
+        prev.mergedView
+          ? {
+              ...prev,
+              mergedSelectedIndex: Math.min(
+                Math.max(0, visibleEntries.length - 1),
+                prev.mergedSelectedIndex + 1,
+              ),
+              mergedFollow:
+                Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 1) ===
+                Math.max(0, visibleEntries.length - 1),
+            }
+          : updateCurrentSource(prev, source => {
+              const max = Math.max(0, getVisibleEntries(source).length - 1);
+              const next = Math.min(max, source.selectedIndex + 1);
+              return { ...source, selectedIndex: next, follow: next === max };
+            }),
+      );
     }
   });
 
@@ -458,7 +570,14 @@ export function LogScreen(): React.ReactNode {
           activeIndex={activeSourceIndex}
           totalSources={sources.length}
           mergedView={mergedView}
+          mergeIgnored={mergeIgnored}
           columns={size.columns}
+          sourceLabels={sources.map(source => source.spec.label)}
+          mergedFilterActive={Boolean(mergedFilter)}
+          mergedQueryActive={Boolean(mergedQuery)}
+          mergedReverseActive={mergedReverse}
+          mergedFollowActive={mergedFollow}
+          visibleEntries={visibleEntries.length}
         />
       }
       body={
@@ -480,14 +599,27 @@ export function LogScreen(): React.ReactNode {
                 value={filterDraft}
                 onChange={value => setState(prev => ({ ...prev, filterDraft: value }))}
                 onSubmit={value =>
-                  setState(prev =>
-                    updateCurrentSource({ ...prev, focusMode: "list", filterDraft: "" }, source => ({
-                      ...source,
-                      filter: value,
-                      selectedIndex: 0,
-                      follow: false,
-                    })),
-                  )
+                  setState(prev => {
+                    if (prev.mergedView) {
+                      return {
+                        ...prev,
+                        focusMode: "list",
+                        filterDraft: "",
+                        mergedFilter: value,
+                        mergedSelectedIndex: 0,
+                        mergedFollow: false,
+                      };
+                    }
+                    return updateCurrentSource(
+                      { ...prev, focusMode: "list", filterDraft: "" },
+                      source => ({
+                        ...source,
+                        filter: value,
+                        selectedIndex: 0,
+                        follow: false,
+                      }),
+                    );
+                  })
                 }
               />
             ) : focusMode === "query" ? (
@@ -497,8 +629,19 @@ export function LogScreen(): React.ReactNode {
                 selectedSuggestionIndex={selectedSuggestionIndex}
                 onChange={value => setState(prev => ({ ...prev, queryDraft: value }))}
                 onSubmit={value =>
-                  setState(prev =>
-                    updateCurrentSource(
+                  setState(prev => {
+                    if (prev.mergedView) {
+                      return {
+                        ...prev,
+                        focusMode: "list",
+                        queryDraft: "",
+                        querySuggestionIndex: 0,
+                        mergedQuery: value,
+                        mergedSelectedIndex: 0,
+                        mergedFollow: false,
+                      };
+                    }
+                    return updateCurrentSource(
                       {
                         ...prev,
                         focusMode: "list",
@@ -511,8 +654,8 @@ export function LogScreen(): React.ReactNode {
                         selectedIndex: 0,
                         follow: false,
                       }),
-                    ),
-                  )
+                    );
+                  })
                 }
               />
             ) : focusMode === "search" ? (
@@ -550,6 +693,7 @@ export function LogScreen(): React.ReactNode {
       footer={
         <Footer
           statusLine={statusLine}
+          startupStatus={startupStatus}
           fps={fps}
           follow={activeSource?.follow ?? false}
           reverse={activeSource?.reverse ?? false}
@@ -557,6 +701,10 @@ export function LogScreen(): React.ReactNode {
           query={activeSource?.query ?? ""}
           search={detailSearchTerm}
           mergedView={mergedView}
+          mergeIgnored={mergeIgnored}
+          sourceCount={sources.length}
+          mergedFilter={mergedFilter}
+          mergedQuery={mergedQuery}
           columns={size.columns}
         />
       }

@@ -31,6 +31,19 @@ bun install
 bun run src/cli.ts examples/mixed.log
 ```
 
+When passing CLI flags to `bun run src/cli.ts`, prefer inserting `--` before
+the tool arguments:
+
+```bash
+bun run src/cli.ts -- examples/mixed.log --merge --filter message:error
+```
+
+For day-to-day use, the wrapper binary is the least surprising:
+
+```bash
+./bin/log examples/mixed.log --merge
+```
+
 ## Quick how-tos
 
 Open a local file:
@@ -77,6 +90,45 @@ Files:
 ```bash
 bun run src/cli.ts server.log access.log
 ```
+
+Files in merged view from startup:
+
+```bash
+./bin/log server.log access.log --merge
+```
+
+If `--merge` is used with only one source, the session falls back to normal mode
+and reports that merge was ignored in both the startup status line and the live
+footer state.
+
+Files in merged view with explicit reverse and no-follow startup:
+
+```bash
+./bin/log server.log access.log --merge --reverse --no-follow
+```
+
+Files in merged view with startup filter and query:
+
+```bash
+./bin/log server.log access.log --merge --filter message:error --query 'level = "error"'
+```
+
+Files in merged view with startup filter/query and zero-follow reverse mode:
+
+```bash
+./bin/log server.log access.log --merge --reverse --no-follow --filter message:error --query 'level = "error"'
+```
+
+Files in merged view with the full startup control set:
+
+```bash
+./bin/log server.log access.log --merge --reverse --no-follow --filter message:line --query 'level = "unknown"'
+```
+
+Those startup flags are reflected back into the live TUI session state:
+
+- header summary includes merged/filter/query/reverse/nofollow context
+- footer state includes merged session markers like `srcs:<n>`, `mflt:...`, and `mqry:...`
 
 stdin:
 

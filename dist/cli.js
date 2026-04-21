@@ -41615,6 +41615,17 @@ function trimLineForPane(text, maxWidth) {
   }
   return `${text.slice(0, Math.max(0, maxWidth - 1))}\u2026`;
 }
+function abbreviateStateValue(label, value, maxWidth) {
+  const prefix = `${label}:`;
+  const full = `${prefix}${value}`;
+  if (full.length <= maxWidth) {
+    return full;
+  }
+  if (prefix.length >= maxWidth) {
+    return trimLineForPane(prefix, maxWidth);
+  }
+  return `${prefix}${trimLineForPane(value, maxWidth - prefix.length)}`;
+}
 
 // src/components/JsonTree.tsx
 function JsonTree(props) {
@@ -41691,6 +41702,19 @@ var init_ansi = __esm(() => {
   };
 });
 
+// src/lib/detailText.ts
+function buildTextDetailLines(text, width, maxLines) {
+  const lines = text.split(/\r?\n/).map((line) => trimLineForPane(line, width));
+  if (!maxLines || lines.length <= maxLines) {
+    return lines;
+  }
+  const visible = lines.slice(0, Math.max(0, maxLines - 1));
+  const last = trimLineForPane(lines[maxLines - 1] ?? "", width);
+  visible.push(last.endsWith("\u2026") ? last : trimLineForPane(`${last}\u2026`, width));
+  return visible;
+}
+var init_detailText = () => {};
+
 // src/lib/textHighlight.ts
 function buildHighlightedSegments(text, term) {
   if (!term) {
@@ -41720,20 +41744,23 @@ function buildHighlightedSegments(text, term) {
 
 // src/components/TextDetail.tsx
 function TextDetail(props) {
-  const lines = props.text.split(/\r?\n/);
+  const width = Math.max(16, props.width ?? 40);
+  const lines = buildTextDetailLines(props.text, width, props.maxLines);
   if (lines.length > 1) {
     return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
       flexDirection: "column",
       children: lines.map((line, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(TextDetail, {
         text: line,
-        searchTerm: props.searchTerm
+        searchTerm: props.searchTerm,
+        width
       }, `${line}-${index}`, false, undefined, this))
     }, undefined, false, undefined, this);
   }
-  const segments = parseAnsiText(props.text);
+  const displayText = lines[0] ?? "";
+  const segments = parseAnsiText(displayText);
   if (segments.length === 0) {
     return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(PlainText, {
-      text: props.text,
+      text: displayText,
       searchTerm: props.searchTerm
     }, undefined, false, undefined, this);
   }
@@ -41767,6 +41794,7 @@ function AnsiText(props) {
 var jsx_dev_runtime4;
 var init_TextDetail = __esm(async () => {
   init_ansi();
+  init_detailText();
   await init_ink2();
   jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
 });
@@ -41803,7 +41831,9 @@ function DetailPane(props) {
           cursor: props.jsonCursor
         }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TextDetail, {
           text: props.entry.raw,
-          searchTerm: props.searchTerm
+          searchTerm: props.searchTerm,
+          width: Math.max(16, width - 2),
+          maxLines: 10
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this)
     ]
@@ -41953,17 +41983,30 @@ var init_FilterBar = __esm(async () => {
 
 // src/components/Footer.tsx
 function Footer(props) {
+  const primaryStatus = props.statusLine;
+  const secondaryStatus = props.statusLine === props.startupStatus ? undefined : props.startupStatus;
   const stateLine = fitInlineParts([
     `focus:${props.focusMode}`,
     `follow:${props.follow ? "on" : "off"}`,
     `reverse:${props.reverse ? "on" : "off"}`,
     `merged:${props.mergedView ? "on" : "off"}`,
-    `query:${props.query ? "on" : "off"}`,
-    `search:${props.search ? "on" : "off"}`,
+    ...props.mergeIgnored ? ["merge:ignored"] : [],
+    ...props.mergedView ? [`srcs:${props.sourceCount}`] : [],
+    ...props.mergedView && props.mergedFilter ? [abbreviateStateValue("mflt", props.mergedFilter, 16)] : [],
+    ...props.mergedView && props.mergedQuery ? [abbreviateStateValue("mqry", props.mergedQuery, 20)] : [],
+    ...!props.mergedView ? [`query:${props.query ? "on" : "off"}`] : [],
+    `srch:${props.search ? "on" : "off"}`,
     `fps:${props.fps}`
   ], Math.max(24, props.columns - 2));
   const keyLineOne = fitInlineParts(["j/k move", "Enter detail", "F filter", "Q query", "/ search", "Space fold"], Math.max(24, props.columns - 2));
-  const keyLineTwo = fitInlineParts(["Tab src", "Right/Ctrl+Y accept", "M merged", "yy/yp/yk yank", "? help", "q quit"], Math.max(24, props.columns - 2));
+  const keyLineTwo = fitInlineParts([
+    "Tab src",
+    "Right/Ctrl+Y accept",
+    ...props.mergeIgnored ? ["M merge unavailable"] : ["M merged"],
+    "yy/yp/yk yank",
+    "? help",
+    "q quit"
+  ], Math.max(24, props.columns - 2));
   return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -41972,8 +42015,12 @@ function Footer(props) {
         children: "-".repeat(Math.max(0, props.columns - 2))
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
-        children: props.statusLine
+        children: primaryStatus
       }, undefined, false, undefined, this),
+      secondaryStatus ? /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+        dimColor: true,
+        children: secondaryStatus
+      }, undefined, false, undefined, this) : null,
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
         children: stateLine
@@ -42013,16 +42060,92 @@ var init_FullscreenLayout = __esm(async () => {
   jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
 });
 
+// src/lib/headerSummary.ts
+function formatEntryCountSummary(input) {
+  const countPart = input.visibleEntries !== input.totalEntries ? `shown=${input.visibleEntries}/${input.totalEntries}` : `entries=${input.totalEntries}`;
+  return `${countPart} \xB7 json=${input.jsonCount} \xB7 text=${input.textCount} \xB7 dropped=${input.droppedCount}`;
+}
+
+// src/lib/merge.ts
+function mergeEntriesByTime(entrySets, reverse) {
+  const merged = entrySets.flat();
+  merged.sort((a, b) => {
+    const timeA = a.timestampMs ?? Number.MAX_SAFE_INTEGER;
+    const timeB = b.timestampMs ?? Number.MAX_SAFE_INTEGER;
+    if (timeA !== timeB) {
+      return reverse ? timeB - timeA : timeA - timeB;
+    }
+    return reverse ? b.lineNumber - a.lineNumber : a.lineNumber - b.lineNumber;
+  });
+  return merged;
+}
+function abbreviateSource(label) {
+  if (!label)
+    return "SRC";
+  const stem = label.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9]/g, "");
+  if (!stem)
+    return "SRC";
+  const digitSuffix = /\d+$/.exec(stem)?.[0] ?? "";
+  const letters = stem.slice(0, stem.length - digitSuffix.length);
+  const base2 = letters.slice(0, 3).toUpperCase() || "SRC";
+  return `${base2}${digitSuffix}`.slice(0, 4);
+}
+function getMergedEntryMeta(entry, previous) {
+  return {
+    sourceMarker: abbreviateSource(entry.sourceLabel),
+    sourceChanged: !previous || previous.sourceId !== entry.sourceId
+  };
+}
+function formatMergedBoundaryLabel(entry) {
+  const marker = abbreviateSource(entry.sourceLabel);
+  return `${marker}: ${entry.sourceLabel ?? entry.sourceId}`;
+}
+function formatMergedSourceSummary(labels, maxWidth, options) {
+  const prefix = `merged(${labels.length}): `;
+  const body = labels.join(", ");
+  const suffixParts = [
+    ...options?.filterActive ? ["filter"] : [],
+    ...options?.queryActive ? ["query"] : [],
+    ...options?.reverseActive ? ["reverse"] : [],
+    ...options?.followActive === false ? ["nofollow"] : []
+  ];
+  const suffix = suffixParts.length > 0 ? ` [${suffixParts.join("+")}]` : "";
+  const full = `${prefix}${body}${suffix}`;
+  if (full.length <= maxWidth) {
+    return full;
+  }
+  if (prefix.length >= maxWidth) {
+    return prefix.slice(0, Math.max(0, maxWidth - 1)) + "\u2026";
+  }
+  return `${prefix}${body.slice(0, Math.max(0, maxWidth - prefix.length - 1))}\u2026`;
+}
+function deriveMergedSelectionIndex(currentIndex, totalEntries, follow) {
+  if (totalEntries <= 0) {
+    return 0;
+  }
+  if (follow) {
+    return totalEntries - 1;
+  }
+  return Math.min(Math.max(0, currentIndex), totalEntries - 1);
+}
+
 // src/components/Header.tsx
 function Header(props) {
   const source = props.source;
-  const sourceLine = fitInlineParts([
-    (props.mergedView ? "all sources" : source?.spec.label) ?? "no source",
-    `entries=${source?.entries.length ?? 0}`,
-    `json=${source?.jsonCount ?? 0}`,
-    `text=${source?.textCount ?? 0}`,
-    `dropped=${source?.droppedCount ?? 0}`
-  ], Math.max(20, props.columns - 2));
+  const countSummary = formatEntryCountSummary({
+    totalEntries: source?.entries.length ?? 0,
+    visibleEntries: props.visibleEntries ?? source?.entries.length ?? 0,
+    jsonCount: source?.jsonCount ?? 0,
+    textCount: source?.textCount ?? 0,
+    droppedCount: source?.droppedCount ?? 0
+  });
+  const summaryLine = props.mergedView ? formatMergedSourceSummary(props.sourceLabels ?? [], Math.max(20, props.columns - 2), {
+    filterActive: props.mergedFilterActive,
+    queryActive: props.mergedQueryActive,
+    reverseActive: props.mergedReverseActive,
+    followActive: props.mergedFollowActive
+  }) : source?.spec.label ?? "no source";
+  const countLine = fitInlineParts([countSummary], Math.max(20, props.columns - 2));
   return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -42041,7 +42164,11 @@ function Header(props) {
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
         dimColor: true,
-        children: sourceLine
+        children: summaryLine
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+        dimColor: true,
+        children: countLine
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
         dimColor: true,
@@ -42137,21 +42264,33 @@ function LogList(props) {
       props.entries.map((entry, index) => {
         const absoluteIndex = props.startIndex + index;
         const selected = absoluteIndex === props.selectedIndex;
+        const previous = index > 0 ? props.entries[index - 1] : undefined;
+        const mergedMeta = props.showSourceLabel ? getMergedEntryMeta(entry, previous) : null;
         const fields = {
           time: entry.timeText,
           level: String(entry.levelNormalized),
           message: entry.message,
           prefix: entry.prefix
         };
-        return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
-          color: selected ? "black" : undefined,
-          backgroundColor: selected ? "white" : undefined,
-          wrap: "truncate-end",
+        return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Box2, {
+          flexDirection: "column",
           children: [
-            selected ? ">" : " ",
-            " ",
-            props.showSourceLabel ? `${cell(entry.sourceLabel, props.sourceWidth)} ` : "",
-            props.columns.map((column) => cell(fields[column.key], column.width)).join(" ")
+            props.showSourceLabel && mergedMeta?.sourceChanged ? /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
+              dimColor: true,
+              wrap: "truncate-end",
+              children: formatMergedBoundaryLabel(entry)
+            }, undefined, false, undefined, this) : null,
+            /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Text2, {
+              color: selected ? "black" : undefined,
+              backgroundColor: selected ? "white" : undefined,
+              wrap: "truncate-end",
+              children: [
+                selected ? ">" : " ",
+                " ",
+                props.showSourceLabel ? `${mergedMeta?.sourceChanged ? ">" : "\xB7"}${cell(mergedMeta?.sourceMarker, props.sourceWidth - 1)} ` : "",
+                props.columns.map((column) => cell(fields[column.key], column.width)).join(" ")
+              ]
+            }, undefined, true, undefined, this)
           ]
         }, entry.id, true, undefined, this);
       })
@@ -42456,19 +42595,41 @@ function flattenJsonTree(value, expanded) {
   return rows;
 }
 
-// src/lib/merge.ts
-function mergeEntriesByTime(entrySets, reverse) {
-  const merged = entrySets.flat();
-  merged.sort((a, b) => {
-    const timeA = a.timestampMs ?? Number.MAX_SAFE_INTEGER;
-    const timeB = b.timestampMs ?? Number.MAX_SAFE_INTEGER;
-    if (timeA !== timeB) {
-      return reverse ? timeB - timeA : timeA - timeB;
-    }
-    return reverse ? b.lineNumber - a.lineNumber : a.lineNumber - b.lineNumber;
-  });
-  return merged;
+// src/lib/mergedSource.ts
+function createMergedSourceState(sources, mergedState) {
+  const seed = sources[0] ?? {
+    spec: { id: "merged", label: "all sources", kind: "file" },
+    entries: [],
+    droppedCount: 0,
+    jsonCount: 0,
+    textCount: 0,
+    filter: "",
+    query: "",
+    follow: true,
+    reverse: false,
+    selectedIndex: 0,
+    expandedPaths: ["root"],
+    detailCursor: 0
+  };
+  const mergedEntries = mergeEntriesByTime(sources.map((source) => source.entries), mergedState.reverse);
+  const jsonCount = mergedEntries.filter((entry) => entry.kind === "json").length;
+  return {
+    ...seed,
+    spec: { id: "merged", label: "all sources", kind: "file" },
+    entries: mergedEntries,
+    droppedCount: sources.reduce((sum, source) => sum + source.droppedCount, 0),
+    jsonCount,
+    textCount: mergedEntries.length - jsonCount,
+    follow: mergedState.follow,
+    reverse: mergedState.reverse,
+    filter: mergedState.filter,
+    query: mergedState.query,
+    expandedPaths: mergedState.expandedPaths,
+    detailCursor: mergedState.detailCursor,
+    selectedIndex: deriveMergedSelectionIndex(mergedState.selectedIndex, mergedEntries.length, mergedState.follow)
+  };
 }
+var init_mergedSource = () => {};
 
 // src/lib/query.ts
 function tokenize4(input) {
@@ -43149,32 +43310,6 @@ function getVisibleEntries(source) {
   const filtered = source.entries.filter((entry) => filter(entry) && query(entry));
   return source.reverse ? [...filtered].reverse() : filtered;
 }
-function getSyntheticMergedSource(sources) {
-  const seed = sources[0] ?? {
-    spec: { id: "merged", label: "all sources", kind: "file" },
-    entries: [],
-    droppedCount: 0,
-    jsonCount: 0,
-    textCount: 0,
-    filter: "",
-    query: "",
-    follow: true,
-    reverse: false,
-    selectedIndex: 0,
-    expandedPaths: ["root"],
-    detailCursor: 0
-  };
-  const mergedEntries = mergeEntriesByTime(sources.map((source) => source.entries), seed.reverse);
-  const jsonCount = mergedEntries.filter((entry) => entry.kind === "json").length;
-  return {
-    ...seed,
-    spec: { id: "merged", label: "all sources", kind: "file" },
-    entries: mergedEntries,
-    droppedCount: sources.reduce((sum, source) => sum + source.droppedCount, 0),
-    jsonCount,
-    textCount: mergedEntries.length - jsonCount
-  };
-}
 function updateCurrentSource(state, updater) {
   if (state.sources.length === 0)
     return state;
@@ -43202,6 +43337,14 @@ function LogScreen() {
   const sources = useAppState((state) => state.sources);
   const activeSourceIndex = useAppState((state) => state.activeSourceIndex);
   const mergedView = useAppState((state) => state.mergedView);
+  const mergeIgnored = useAppState((state) => state.mergeIgnored);
+  const mergedSelectedIndex = useAppState((state) => state.mergedSelectedIndex);
+  const mergedFollow = useAppState((state) => state.mergedFollow);
+  const mergedReverse = useAppState((state) => state.mergedReverse);
+  const mergedFilter = useAppState((state) => state.mergedFilter);
+  const mergedQuery = useAppState((state) => state.mergedQuery);
+  const mergedExpandedPaths = useAppState((state) => state.mergedExpandedPaths);
+  const mergedDetailCursor = useAppState((state) => state.mergedDetailCursor);
   const focusMode = useAppState((state) => state.focusMode);
   const detailMode = useAppState((state) => state.detailMode);
   const filterDraft = useAppState((state) => state.filterDraft);
@@ -43210,13 +43353,33 @@ function LogScreen() {
   const detailSearchDraft = useAppState((state) => state.detailSearchDraft);
   const detailSearchTerm = useAppState((state) => state.detailSearchTerm);
   const detailSearchMatches = useAppState((state) => state.detailSearchMatches);
+  const startupStatus = useAppState((state) => state.startupStatus);
   const statusLine = useAppState((state) => state.statusLine);
   const fps = useAppState((state) => state.fps);
   const lastFlushSize = useAppState((state) => state.lastFlushSize);
   const showHelp = useAppState((state) => state.showHelp);
   const config = useAppState((state) => state.config);
   const baseSource = sources[activeSourceIndex];
-  const activeSource = import_react25.useMemo(() => mergedView ? getSyntheticMergedSource(sources) : baseSource, [baseSource, mergedView, sources]);
+  const activeSource = import_react25.useMemo(() => mergedView ? createMergedSourceState(sources, {
+    selectedIndex: mergedSelectedIndex,
+    follow: mergedFollow,
+    reverse: mergedReverse,
+    filter: mergedFilter,
+    query: mergedQuery,
+    expandedPaths: mergedExpandedPaths,
+    detailCursor: mergedDetailCursor
+  }) : baseSource, [
+    baseSource,
+    mergedDetailCursor,
+    mergedExpandedPaths,
+    mergedFilter,
+    mergedFollow,
+    mergedQuery,
+    mergedReverse,
+    mergedSelectedIndex,
+    mergedView,
+    sources
+  ]);
   const visibleEntries = import_react25.useMemo(() => getVisibleEntries(activeSource), [activeSource]);
   const selectedIndex = Math.min(activeSource?.selectedIndex ?? 0, Math.max(0, visibleEntries.length - 1));
   const visibleCount = Math.max(8, size.rows - 12);
@@ -43342,18 +43505,22 @@ function LogScreen() {
       return;
     }
     if (input === "R") {
-      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, reverse: !source.reverse })));
+      setState((prev) => prev.mergedView ? { ...prev, mergedReverse: !prev.mergedReverse } : updateCurrentSource(prev, (source) => ({ ...source, reverse: !source.reverse })));
       return;
     }
     if (input === "F") {
-      setState((prev) => ({ ...prev, focusMode: "filter", filterDraft: baseSource?.filter ?? "" }));
+      setState((prev) => ({
+        ...prev,
+        focusMode: "filter",
+        filterDraft: prev.mergedView ? prev.mergedFilter : baseSource?.filter ?? ""
+      }));
       return;
     }
     if (input === "Q") {
       setState((prev) => ({
         ...prev,
         focusMode: "query",
-        queryDraft: baseSource?.query ?? "",
+        queryDraft: prev.mergedView ? prev.mergedQuery : baseSource?.query ?? "",
         querySuggestionIndex: 0
       }));
       return;
@@ -43415,44 +43582,64 @@ function LogScreen() {
       }
       if (selectedEntry?.kind === "json" && detailMode === "tree") {
         if (key.upArrow || input === "k") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })));
+          setState((prev) => prev.mergedView ? { ...prev, mergedDetailCursor: Math.max(0, prev.mergedDetailCursor - 1) } : updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.max(0, source.detailCursor - 1) })));
           return;
         }
         if (key.downArrow || input === "j") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1) })));
+          setState((prev) => prev.mergedView ? {
+            ...prev,
+            mergedDetailCursor: Math.min(Math.max(0, jsonRows.length - 1), prev.mergedDetailCursor + 1)
+          } : updateCurrentSource(prev, (source) => ({ ...source, detailCursor: Math.min(Math.max(0, jsonRows.length - 1), source.detailCursor + 1) })));
           return;
         }
         if (input === " " || input === "l" || input === "h") {
           const row = jsonRows[activeSource?.detailCursor ?? 0];
           if (!row?.expandable)
             return;
-          setState((prev) => updateCurrentSource(prev, (source) => {
-            const expanded = new Set(source.expandedPaths);
-            if (expanded.has(row.path))
-              expanded.delete(row.path);
-            else
-              expanded.add(row.path);
-            return { ...source, expandedPaths: [...expanded] };
-          }));
+          setState((prev) => {
+            if (prev.mergedView) {
+              const expanded = new Set(prev.mergedExpandedPaths);
+              if (expanded.has(row.path))
+                expanded.delete(row.path);
+              else
+                expanded.add(row.path);
+              return { ...prev, mergedExpandedPaths: [...expanded] };
+            }
+            return updateCurrentSource(prev, (source) => {
+              const expanded = new Set(source.expandedPaths);
+              if (expanded.has(row.path))
+                expanded.delete(row.path);
+              else
+                expanded.add(row.path);
+              return { ...source, expandedPaths: [...expanded] };
+            });
+          });
           return;
         }
         if (input === "C") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, expandedPaths: ["root"] })));
+          setState((prev) => prev.mergedView ? { ...prev, mergedExpandedPaths: ["root"] } : updateCurrentSource(prev, (source) => ({ ...source, expandedPaths: ["root"] })));
           return;
         }
         if (input === "E") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, expandedPaths: jsonRows.filter((row) => row.expandable).map((row) => row.path) })));
+          const expandedPaths = jsonRows.filter((row) => row.expandable).map((row) => row.path);
+          setState((prev) => prev.mergedView ? { ...prev, mergedExpandedPaths: expandedPaths } : updateCurrentSource(prev, (source) => ({ ...source, expandedPaths })));
           return;
         }
         if (input === "n") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({
+          setState((prev) => prev.mergedView ? {
+            ...prev,
+            mergedDetailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.next(prev.mergedDetailCursor) : textSearch.next(prev.mergedDetailCursor)
+          } : updateCurrentSource(prev, (source) => ({
             ...source,
             detailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.next(source.detailCursor) : textSearch.next(source.detailCursor)
           })));
           return;
         }
         if (input === "N") {
-          setState((prev) => updateCurrentSource(prev, (source) => ({
+          setState((prev) => prev.mergedView ? {
+            ...prev,
+            mergedDetailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.prev(prev.mergedDetailCursor) : textSearch.prev(prev.mergedDetailCursor)
+          } : updateCurrentSource(prev, (source) => ({
             ...source,
             detailCursor: selectedEntry?.kind === "json" && detailMode === "tree" ? detailSearch.prev(source.detailCursor) : textSearch.prev(source.detailCursor)
           })));
@@ -43470,19 +43657,31 @@ function LogScreen() {
       return;
     }
     if (input === "g") {
-      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: 0, follow: false })));
+      setState((prev) => prev.mergedView ? { ...prev, mergedSelectedIndex: 0, mergedFollow: false } : updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: 0, follow: false })));
       return;
     }
     if (input === "G") {
-      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, getVisibleEntries(source).length - 1), follow: true })));
+      setState((prev) => prev.mergedView ? {
+        ...prev,
+        mergedSelectedIndex: Math.max(0, visibleEntries.length - 1),
+        mergedFollow: true
+      } : updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, getVisibleEntries(source).length - 1), follow: true })));
       return;
     }
     if (key.pageUp) {
-      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 10), follow: false })));
+      setState((prev) => prev.mergedView ? {
+        ...prev,
+        mergedSelectedIndex: Math.max(0, prev.mergedSelectedIndex - 10),
+        mergedFollow: false
+      } : updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 10), follow: false })));
       return;
     }
     if (key.pageDown) {
-      setState((prev) => updateCurrentSource(prev, (source) => {
+      setState((prev) => prev.mergedView ? {
+        ...prev,
+        mergedSelectedIndex: Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 10),
+        mergedFollow: Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 10) === Math.max(0, visibleEntries.length - 1)
+      } : updateCurrentSource(prev, (source) => {
         const max = Math.max(0, getVisibleEntries(source).length - 1);
         const next = Math.min(max, source.selectedIndex + 10);
         return { ...source, selectedIndex: next, follow: next === max };
@@ -43490,11 +43689,19 @@ function LogScreen() {
       return;
     }
     if (key.upArrow || input === "k") {
-      setState((prev) => updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 1), follow: false })));
+      setState((prev) => prev.mergedView ? {
+        ...prev,
+        mergedSelectedIndex: Math.max(0, prev.mergedSelectedIndex - 1),
+        mergedFollow: false
+      } : updateCurrentSource(prev, (source) => ({ ...source, selectedIndex: Math.max(0, source.selectedIndex - 1), follow: false })));
       return;
     }
     if (key.downArrow || input === "j") {
-      setState((prev) => updateCurrentSource(prev, (source) => {
+      setState((prev) => prev.mergedView ? {
+        ...prev,
+        mergedSelectedIndex: Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 1),
+        mergedFollow: Math.min(Math.max(0, visibleEntries.length - 1), prev.mergedSelectedIndex + 1) === Math.max(0, visibleEntries.length - 1)
+      } : updateCurrentSource(prev, (source) => {
         const max = Math.max(0, getVisibleEntries(source).length - 1);
         const next = Math.min(max, source.selectedIndex + 1);
         return { ...source, selectedIndex: next, follow: next === max };
@@ -43507,7 +43714,13 @@ function LogScreen() {
       activeIndex: activeSourceIndex,
       totalSources: sources.length,
       mergedView,
-      columns: size.columns
+      columns: size.columns,
+      sourceLabels: sources.map((source) => source.spec.label),
+      mergedFilterActive: Boolean(mergedFilter),
+      mergedQueryActive: Boolean(mergedQuery),
+      mergedReverseActive: mergedReverse,
+      mergedFollowActive: mergedFollow,
+      visibleEntries: visibleEntries.length
     }, undefined, false, undefined, this),
     body: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Box2, {
       flexDirection: "row",
@@ -43533,28 +43746,53 @@ function LogScreen() {
           children: focusMode === "filter" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(FilterBar, {
             value: filterDraft,
             onChange: (value) => setState((prev) => ({ ...prev, filterDraft: value })),
-            onSubmit: (value) => setState((prev) => updateCurrentSource({ ...prev, focusMode: "list", filterDraft: "" }, (source) => ({
-              ...source,
-              filter: value,
-              selectedIndex: 0,
-              follow: false
-            })))
+            onSubmit: (value) => setState((prev) => {
+              if (prev.mergedView) {
+                return {
+                  ...prev,
+                  focusMode: "list",
+                  filterDraft: "",
+                  mergedFilter: value,
+                  mergedSelectedIndex: 0,
+                  mergedFollow: false
+                };
+              }
+              return updateCurrentSource({ ...prev, focusMode: "list", filterDraft: "" }, (source) => ({
+                ...source,
+                filter: value,
+                selectedIndex: 0,
+                follow: false
+              }));
+            })
           }, undefined, false, undefined, this) : focusMode === "query" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(QueryBar, {
             value: queryDraft,
             suggestions: querySuggestions,
             selectedSuggestionIndex,
             onChange: (value) => setState((prev) => ({ ...prev, queryDraft: value })),
-            onSubmit: (value) => setState((prev) => updateCurrentSource({
-              ...prev,
-              focusMode: "list",
-              queryDraft: "",
-              querySuggestionIndex: 0
-            }, (source) => ({
-              ...source,
-              query: value,
-              selectedIndex: 0,
-              follow: false
-            })))
+            onSubmit: (value) => setState((prev) => {
+              if (prev.mergedView) {
+                return {
+                  ...prev,
+                  focusMode: "list",
+                  queryDraft: "",
+                  querySuggestionIndex: 0,
+                  mergedQuery: value,
+                  mergedSelectedIndex: 0,
+                  mergedFollow: false
+                };
+              }
+              return updateCurrentSource({
+                ...prev,
+                focusMode: "list",
+                queryDraft: "",
+                querySuggestionIndex: 0
+              }, (source) => ({
+                ...source,
+                query: value,
+                selectedIndex: 0,
+                follow: false
+              }));
+            })
           }, undefined, false, undefined, this) : focusMode === "search" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(SearchBar, {
             value: detailSearchDraft,
             onChange: (value) => setState((prev) => ({ ...prev, detailSearchDraft: value })),
@@ -43580,6 +43818,7 @@ function LogScreen() {
     }, undefined, true, undefined, this),
     footer: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Footer, {
       statusLine,
+      startupStatus,
       fps,
       follow: activeSource?.follow ?? false,
       reverse: activeSource?.reverse ?? false,
@@ -43587,6 +43826,10 @@ function LogScreen() {
       query: activeSource?.query ?? "",
       search: detailSearchTerm,
       mergedView,
+      mergeIgnored,
+      sourceCount: sources.length,
+      mergedFilter,
+      mergedQuery,
       columns: size.columns
     }, undefined, false, undefined, this),
     overlay: showHelp ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(HelpModal, {}, undefined, false, undefined, this) : undefined
@@ -43596,6 +43839,7 @@ var import_react25, jsx_dev_runtime14;
 var init_LogScreen = __esm(async () => {
   init_clipboardy();
   init_useTerminalSize();
+  init_mergedSource();
   init_queryAutocomplete();
   init_sourceManager();
   init_AppState();
@@ -43665,6 +43909,67 @@ async function launchRepl(root, appProps, renderAndRun2) {
     initialState: appProps.initialState,
     children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(LogScreen2, {}, undefined, false, undefined, this)
   }, undefined, false, undefined, this));
+}
+
+// src/lib/argv.ts
+var OPTION_SPECS = [
+  { name: "--url", takesValue: true },
+  { name: "--cmd", takesValue: true },
+  { name: "--max", takesValue: true },
+  { name: "--batch-ms", takesValue: true },
+  { name: "--merge", takesValue: false },
+  { name: "--filter", takesValue: true },
+  { name: "--query", takesValue: true },
+  { name: "--reverse", takesValue: false },
+  { name: "--no-follow", takesValue: false },
+  { name: "--summary-json", takesValue: false },
+  { name: "--summary-text", takesValue: false },
+  { name: "--help", takesValue: false },
+  { name: "-h", takesValue: false }
+];
+var OPTION_INDEX = new Map(OPTION_SPECS.map((spec) => [spec.name, spec]));
+function moveTrailingOptionsBeforePositionals(args) {
+  const files = [];
+  const options = [];
+  for (let index = 0;index < args.length; index += 1) {
+    const token = args[index];
+    const spec = OPTION_INDEX.get(token);
+    if (!spec) {
+      files.push(token);
+      continue;
+    }
+    options.push(token);
+    if (spec.takesValue) {
+      const next = args[index + 1];
+      if (next !== undefined) {
+        options.push(next);
+        index += 1;
+      }
+    }
+  }
+  return [...options, ...files];
+}
+function parseTopLevelArgs(args) {
+  const normalized = moveTrailingOptionsBeforePositionals(args);
+  const files = [];
+  const options = {};
+  for (let index = 0;index < normalized.length; index += 1) {
+    const token = normalized[index];
+    const spec = OPTION_INDEX.get(token);
+    if (!spec) {
+      files.push(token);
+      continue;
+    }
+    const key = spec.name.replace(/^--/, "").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    if (spec.takesValue) {
+      const next = normalized[index + 1];
+      options[key] = next;
+      index += 1;
+    } else {
+      options[key] = token.startsWith("--no-") ? false : true;
+    }
+  }
+  return { files, options };
 }
 
 // src/lib/config.ts
@@ -57306,11 +57611,54 @@ function createSourceState(spec) {
     detailCursor: 0
   };
 }
-function getDefaultAppState(sources, config2) {
+function buildStartupStatusLine(sourceCount, options) {
+  const mergeRequested = Boolean(options?.mergedView);
+  const mergedView = Boolean(mergeRequested && sourceCount > 1);
+  const startupModes = [
+    ...options?.defaultFilter ? ["filter"] : [],
+    ...options?.defaultQuery ? ["query"] : [],
+    ...options?.reverse ? ["reverse"] : [],
+    ...options?.follow === false ? ["nofollow"] : []
+  ];
+  if (mergeRequested && sourceCount <= 1) {
+    return `Loaded ${sourceCount} source(s). Merge ignored without multiple sources.`;
+  }
+  return mergedView ? `Loaded ${sourceCount} source(s) in merged view${startupModes.length ? ` with ${startupModes.join(" + ")}` : ""}.` : `Loaded ${sourceCount} source(s)${startupModes.length ? ` with ${startupModes.join(" + ")}` : ""}.`;
+}
+function getDefaultAppState(sources, config2, options) {
+  const mergeRequested = Boolean(options?.mergedView);
+  const mergedView = Boolean(mergeRequested && sources.length > 1);
+  const mergeIgnored = Boolean(mergeRequested && sources.length <= 1);
+  const defaultFilter = options?.defaultFilter ?? "";
+  const defaultQuery = options?.defaultQuery ?? "";
+  const follow = options?.follow ?? true;
+  const reverse = options?.reverse ?? false;
+  const startupStatus = buildStartupStatusLine(sources.length, {
+    mergedView: mergeRequested,
+    defaultFilter,
+    defaultQuery,
+    follow,
+    reverse
+  });
   return {
-    sources: sources.map(createSourceState),
+    sources: sources.map((spec) => ({
+      ...createSourceState(spec),
+      filter: defaultFilter,
+      query: defaultQuery,
+      follow,
+      reverse
+    })),
     activeSourceIndex: 0,
-    mergedView: false,
+    mergedView,
+    mergeIgnored,
+    mergedSelectedIndex: 0,
+    mergedFollow: follow,
+    mergedReverse: reverse,
+    mergedFilter: defaultFilter,
+    mergedQuery: defaultQuery,
+    mergedExpandedPaths: ["root"],
+    mergedDetailCursor: 0,
+    startupStatus,
     focusMode: "list",
     detailMode: "tree",
     filterDraft: "",
@@ -57319,7 +57667,7 @@ function getDefaultAppState(sources, config2) {
     detailSearchDraft: "",
     detailSearchTerm: "",
     detailSearchMatches: [],
-    statusLine: `Loaded ${sources.length} source(s).`,
+    statusLine: startupStatus,
     fps: 0,
     lastFlushSize: 0,
     ingesting: true,
@@ -57350,6 +57698,15 @@ function buildSummary(sources, entriesBySource) {
     totalEntries: sourceSummaries.reduce((sum, source) => sum + source.entries, 0)
   };
 }
+function buildFilteredSummary(sources, entriesBySource, filterText, queryText) {
+  const filter = buildFilter(filterText);
+  const query = buildQuery(queryText);
+  const filtered = new Map;
+  for (const [sourceId, entries] of entriesBySource) {
+    filtered.set(sourceId, entries.filter((entry) => filter(entry) && query(entry)));
+  }
+  return buildSummary(sources, filtered);
+}
 
 // src/main.tsx
 async function runSummary(options, fileArgs) {
@@ -57379,7 +57736,7 @@ async function runSummary(options, fileArgs) {
       resolve();
     }, 300);
   });
-  const summary = buildSummary(sources, entriesBySource);
+  const summary = options.filter || options.query ? buildFilteredSummary(sources, entriesBySource, options.filter ?? "", options.query ?? "") : buildSummary(sources, entriesBySource);
   if (options.summaryJson) {
     process.stdout.write(JSON.stringify(summary, null, 2) + `
 `);
@@ -57390,10 +57747,16 @@ async function runSummary(options, fileArgs) {
 }
 async function main() {
   const program2 = new Command("log");
-  program2.argument("[files...]", "Log files to open").option("--url <url>", "Read lines from a streaming HTTP GET response").option("--cmd <command>", "Spawn a command and read stdout/stderr as lines").option("--max <n>", "Maximum entries per source", "50000").option("--batch-ms <n>", "Batch interval for UI flushes", "50").option("--summary-json", "Read input and output a JSON summary instead of starting the TUI").option("--summary-text", "Read input and output a text summary instead of starting the TUI").helpOption("-h, --help", "Display help");
-  await program2.parseAsync(process.argv);
-  const options = program2.opts();
-  const fileArgs = program2.args ?? [];
+  program2.argument("[files...]", "Log files to open").option("--url <url>", "Read lines from a streaming HTTP GET response").option("--cmd <command>", "Spawn a command and read stdout/stderr as lines").option("--max <n>", "Maximum entries per source", "50000").option("--batch-ms <n>", "Batch interval for UI flushes", "50").option("--merge", "Start the interactive TUI with merged multi-source view enabled").option("--filter <expr>", "Apply a startup filter expression").option("--query <expr>", "Apply a startup boolean query").option("--reverse", "Start with reverse ordering enabled").option("--no-follow", "Start with follow mode disabled").option("--summary-json", "Read input and output a JSON summary instead of starting the TUI").option("--summary-text", "Read input and output a text summary instead of starting the TUI").helpOption("-h, --help", "Display help");
+  const rawArgs = process.argv.slice(2);
+  const normalizedInput = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
+  if (normalizedInput.includes("--help") || normalizedInput.includes("-h")) {
+    await program2.parseAsync(process.argv);
+    return;
+  }
+  const parsed = parseTopLevelArgs(normalizedInput);
+  const options = parsed.options;
+  const fileArgs = parsed.files;
   if (options.summaryJson || options.summaryText || !process.stdout.isTTY) {
     await runSummary(options, fileArgs);
     return;
@@ -57410,6 +57773,12 @@ async function main() {
       ...config2,
       maxEntries: Number(options.max ?? config2.maxEntries),
       batchMs: Number(options.batchMs ?? config2.batchMs)
+    }, {
+      mergedView: Boolean(options.merge),
+      defaultFilter: options.filter,
+      defaultQuery: options.query,
+      reverse: Boolean(options.reverse),
+      follow: options.follow
     })
   }, renderAndRun);
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "../ink";
+import { formatMergedBoundaryLabel, getMergedEntryMeta } from "../lib/merge";
 import type { ColumnConfig, LogEntry } from "../types";
 
 function cell(value: string | undefined, width: number): string {
@@ -36,6 +37,8 @@ export function LogList(props: {
       {props.entries.map((entry, index) => {
         const absoluteIndex = props.startIndex + index;
         const selected = absoluteIndex === props.selectedIndex;
+        const previous = index > 0 ? props.entries[index - 1] : undefined;
+        const mergedMeta = props.showSourceLabel ? getMergedEntryMeta(entry, previous) : null;
         const fields: Record<string, string | undefined> = {
           time: entry.timeText,
           level: String(entry.levelNormalized),
@@ -43,16 +46,24 @@ export function LogList(props: {
           prefix: entry.prefix,
         };
         return (
-          <Text
-            key={entry.id}
-            color={selected ? "black" : undefined}
-            backgroundColor={selected ? "white" : undefined}
-            wrap="truncate-end"
-          >
-            {selected ? ">" : " "}{" "}
-            {props.showSourceLabel ? `${cell(entry.sourceLabel, props.sourceWidth)} ` : ""}
-            {props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}
-          </Text>
+          <Box key={entry.id} flexDirection="column">
+            {props.showSourceLabel && mergedMeta?.sourceChanged ? (
+              <Text dimColor wrap="truncate-end">
+                {formatMergedBoundaryLabel(entry)}
+              </Text>
+            ) : null}
+            <Text
+              color={selected ? "black" : undefined}
+              backgroundColor={selected ? "white" : undefined}
+              wrap="truncate-end"
+            >
+              {selected ? ">" : " "}{" "}
+              {props.showSourceLabel
+                ? `${mergedMeta?.sourceChanged ? ">" : "·"}${cell(mergedMeta?.sourceMarker, props.sourceWidth - 1)} `
+                : ""}
+              {props.columns.map(column => cell(fields[column.key], column.width)).join(" ")}
+            </Text>
+          </Box>
         );
       })}
     </Box>

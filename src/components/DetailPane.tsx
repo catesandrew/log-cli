@@ -47,7 +47,12 @@ export function DetailPane(props: {
         {props.entry.kind === "json" && props.detailMode === "tree" ? (
           <JsonTree rows={props.jsonRows} cursor={props.jsonCursor} />
         ) : (
-          <TextDetail text={props.entry.raw} searchTerm={props.searchTerm} />
+          <TextDetail
+            text={props.entry.raw}
+            searchTerm={props.searchTerm}
+            width={Math.max(16, width - 2)}
+            maxLines={10}
+          />
         )}
       </Box>
     </Box>

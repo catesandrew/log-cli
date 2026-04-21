@@ -39,3 +39,19 @@ export function trimLineForPane(text: string, maxWidth: number): string {
   }
   return `${text.slice(0, Math.max(0, maxWidth - 1))}…`;
 }
+
+export function abbreviateStateValue(
+  label: string,
+  value: string,
+  maxWidth: number,
+): string {
+  const prefix = `${label}:`;
+  const full = `${prefix}${value}`;
+  if (full.length <= maxWidth) {
+    return full;
+  }
+  if (prefix.length >= maxWidth) {
+    return trimLineForPane(prefix, maxWidth);
+  }
+  return `${prefix}${trimLineForPane(value, maxWidth - prefix.length)}`;
+}

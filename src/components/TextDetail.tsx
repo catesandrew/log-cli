@@ -1,23 +1,31 @@
 import React from "react";
 import { Box, Text } from "../ink";
 import { parseAnsiText } from "../lib/ansi";
+import { buildTextDetailLines } from "../lib/detailText";
 import { buildHighlightedSegments } from "../lib/textHighlight";
 
-export function TextDetail(props: { text: string; searchTerm?: string }): React.ReactNode {
-  const lines = props.text.split(/\r?\n/);
+export function TextDetail(props: { text: string; searchTerm?: string; width?: number; maxLines?: number }): React.ReactNode {
+  const width = Math.max(16, props.width ?? 40);
+  const lines = buildTextDetailLines(props.text, width, props.maxLines);
   if (lines.length > 1) {
     return (
       <Box flexDirection="column">
         {lines.map((line, index) => (
-          <TextDetail key={`${line}-${index}`} text={line} searchTerm={props.searchTerm} />
+          <TextDetail
+            key={`${line}-${index}`}
+            text={line}
+            searchTerm={props.searchTerm}
+            width={width}
+          />
         ))}
       </Box>
     );
   }
 
-  const segments = parseAnsiText(props.text);
+  const displayText = lines[0] ?? "";
+  const segments = parseAnsiText(displayText);
   if (segments.length === 0) {
-    return <PlainText text={props.text} searchTerm={props.searchTerm} />;
+    return <PlainText text={displayText} searchTerm={props.searchTerm} />;
   }
 
   return (

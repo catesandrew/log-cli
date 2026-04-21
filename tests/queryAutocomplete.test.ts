@@ -24,6 +24,11 @@ describe("buildQuerySuggestions", () => {
     expect(suggestions.some(item => item.includes("service"))).toBe(true);
   });
 
+  test("ranks prefix matches ahead of weaker matches", () => {
+    const suggestions = buildQuerySuggestions(entries, "lev");
+    expect(suggestions[0]).toContain("level");
+  });
+
   test("suggests operators and snippets for empty query", () => {
     const suggestions = buildQuerySuggestions(entries, "");
     expect(suggestions).toContain('level = "error"');

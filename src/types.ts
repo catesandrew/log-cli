@@ -73,6 +73,15 @@ export type AppState = {
   sources: SourceState[];
   activeSourceIndex: number;
   mergedView: boolean;
+  mergeIgnored: boolean;
+  mergedSelectedIndex: number;
+  mergedFollow: boolean;
+  mergedReverse: boolean;
+  mergedFilter: string;
+  mergedQuery: string;
+  mergedExpandedPaths: string[];
+  mergedDetailCursor: number;
+  startupStatus: string;
   focusMode: FocusMode;
   detailMode: DetailMode;
   filterDraft: string;

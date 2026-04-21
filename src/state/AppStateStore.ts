@@ -17,11 +17,76 @@ function createSourceState(spec: SourceSpec): SourceState {
   };
 }
 
-export function getDefaultAppState(sources: SourceSpec[], config: AppConfig): AppState {
+export function buildStartupStatusLine(
+  sourceCount: number,
+  options?: {
+    mergedView?: boolean;
+    defaultFilter?: string;
+    defaultQuery?: string;
+    follow?: boolean;
+    reverse?: boolean;
+  },
+): string {
+  const mergeRequested = Boolean(options?.mergedView);
+  const mergedView = Boolean(mergeRequested && sourceCount > 1);
+  const startupModes = [
+    ...(options?.defaultFilter ? ["filter"] : []),
+    ...(options?.defaultQuery ? ["query"] : []),
+    ...(options?.reverse ? ["reverse"] : []),
+    ...(options?.follow === false ? ["nofollow"] : []),
+  ];
+  if (mergeRequested && sourceCount <= 1) {
+    return `Loaded ${sourceCount} source(s). Merge ignored without multiple sources.`;
+  }
+  return mergedView
+    ? `Loaded ${sourceCount} source(s) in merged view${startupModes.length ? ` with ${startupModes.join(" + ")}` : ""}.`
+    : `Loaded ${sourceCount} source(s)${startupModes.length ? ` with ${startupModes.join(" + ")}` : ""}.`;
+}
+
+export function getDefaultAppState(
+  sources: SourceSpec[],
+  config: AppConfig,
+  options?: {
+    mergedView?: boolean;
+    defaultFilter?: string;
+    defaultQuery?: string;
+    follow?: boolean;
+    reverse?: boolean;
+  },
+): AppState {
+  const mergeRequested = Boolean(options?.mergedView);
+  const mergedView = Boolean(mergeRequested && sources.length > 1);
+  const mergeIgnored = Boolean(mergeRequested && sources.length <= 1);
+  const defaultFilter = options?.defaultFilter ?? "";
+  const defaultQuery = options?.defaultQuery ?? "";
+  const follow = options?.follow ?? true;
+  const reverse = options?.reverse ?? false;
+  const startupStatus = buildStartupStatusLine(sources.length, {
+    mergedView: mergeRequested,
+    defaultFilter,
+    defaultQuery,
+    follow,
+    reverse,
+  });
   return {
-    sources: sources.map(createSourceState),
+    sources: sources.map(spec => ({
+      ...createSourceState(spec),
+      filter: defaultFilter,
+      query: defaultQuery,
+      follow,
+      reverse,
+    })),
     activeSourceIndex: 0,
-    mergedView: false,
+    mergedView,
+    mergeIgnored,
+    mergedSelectedIndex: 0,
+    mergedFollow: follow,
+    mergedReverse: reverse,
+    mergedFilter: defaultFilter,
+    mergedQuery: defaultQuery,
+    mergedExpandedPaths: ["root"],
+    mergedDetailCursor: 0,
+    startupStatus,
     focusMode: "list",
     detailMode: "tree",
     filterDraft: "",
@@ -30,7 +95,7 @@ export function getDefaultAppState(sources: SourceSpec[], config: AppConfig): Ap
     detailSearchDraft: "",
     detailSearchTerm: "",
     detailSearchMatches: [],
-    statusLine: `Loaded ${sources.length} source(s).`,
+    statusLine: startupStatus,
     fps: 0,
     lastFlushSize: 0,
     ingesting: true,

@@ -17,6 +17,15 @@ function run(args: string[], input?: string): string {
   return `${result.stdout}${result.stderr}`;
 }
 
+function runDirect(cmd: string, args: string[]): string {
+  const result = spawnSync(cmd, args, {
+    cwd: root,
+    encoding: "utf8",
+  });
+  expect(result.status).toBe(0);
+  return `${result.stdout}${result.stderr}`;
+}
+
 describe("log e2e smoke", () => {
   test("shows top-level help", () => {
     const output = run(["run", "src/cli.ts", "--help"]);
@@ -29,6 +38,94 @@ describe("log e2e smoke", () => {
     const output = run(["run", "src/cli.ts", "examples/mixed.log", "--summary-json"]);
     expect(output).toContain("\"sources\"");
     expect(output).toContain("\"totalEntries\"");
+  });
+
+  test("summarizes multiple files as multiple sources", () => {
+    const output = run([
+      "run",
+      "src/cli.ts",
+      "examples/mixed.log",
+      "examples/mixed-2.log",
+      "--summary-json",
+    ]);
+    expect(output).toContain("\"label\": \"mixed.log\"");
+    expect(output).toContain("\"label\": \"mixed-2.log\"");
+    expect(output).toContain("\"totalEntries\": 8");
+  });
+
+  test("help documents merged startup mode", () => {
+    const output = run(["run", "src/cli.ts", "--help"]);
+    expect(output).toContain("--merge");
+    expect(output).toContain("ignored with one source");
+    expect(output).toContain("--filter");
+    expect(output).toContain("--query");
+    expect(output).toContain("--reverse");
+    expect(output).toContain("--no-follow");
+  });
+
+  test("help documents merged startup filters and queries together", () => {
+    const output = run(["run", "src/cli.ts", "--help"]);
+    expect(output).toContain("--merge");
+    expect(output).toContain("--filter");
+    expect(output).toContain("--query");
+    expect(output).toContain("--reverse");
+    expect(output).toContain("--no-follow");
+  });
+
+  test("applies startup filter and query in summary mode", () => {
+    const output = run([
+      "run",
+      "src/cli.ts",
+      "examples/mixed.log",
+      "--summary-json",
+      "--filter",
+      "message:timeout",
+      "--query",
+      'level = "error"',
+    ]);
+    expect(output).toContain("\"totalEntries\": 1");
+  });
+
+  test("applies startup filter and query in merged summary mode with matching results", () => {
+    const output = run([
+      "run",
+      "src/cli.ts",
+      "examples/mixed.log",
+      "examples/mixed-2.log",
+      "--merge",
+      "--summary-json",
+      "--filter",
+      "message:line",
+      "--query",
+      'level = "unknown"',
+    ]);
+    expect(output).toContain('"label": "mixed.log"');
+    expect(output).toContain('"label": "mixed-2.log"');
+    expect(output).toContain('"totalEntries": 2');
+  });
+
+  test("supports the full merged startup control set together", () => {
+    const output = run([
+      "run",
+      "src/cli.ts",
+      "examples/mixed.log",
+      "examples/mixed-2.log",
+      "--merge",
+      "--reverse",
+      "--no-follow",
+      "--summary-json",
+      "--filter",
+      "message:line",
+      "--query",
+      'level = "unknown"',
+    ]);
+    expect(output).toContain('"label": "mixed.log"');
+    expect(output).toContain('"label": "mixed-2.log"');
+    expect(output).toContain('"totalEntries": 2');
+    expect(output).toContain('"metadata"');
+    expect(output).toContain('"mergedActive": true');
+    expect(output).toContain('"reverse": true');
+    expect(output).toContain('"follow": false');
   });
 
   test("summarizes piped stdin as text", () => {
@@ -88,5 +185,35 @@ describe("log e2e smoke", () => {
     ]);
     expect(output).toContain("\"entries\": 2000");
     expect(output).toContain("\"json\": 2000");
+  });
+
+  test("wrapper binary supports merged startup filters and queries", () => {
+    const output = runDirect("./bin/log", [
+      "examples/mixed.log",
+      "examples/mixed-2.log",
+      "--merge",
+      "--reverse",
+      "--no-follow",
+      "--filter",
+      "message:line",
+      "--query",
+      'level = "unknown"',
+      "--summary-json",
+    ]);
+    expect(output).toContain('"label": "mixed.log"');
+    expect(output).toContain('"label": "mixed-2.log"');
+    expect(output).toContain('"totalEntries": 2');
+    expect(output).toContain('"follow": false');
+  });
+
+  test("wrapper binary ignores merge when only one source is provided", () => {
+    const output = runDirect("./bin/log", [
+      "examples/mixed.log",
+      "--merge",
+      "--summary-text",
+    ]);
+    expect(output).toContain("entries=5");
+    expect(output).toContain("json=3");
+    expect(output).toContain("text=2");
   });
 });
