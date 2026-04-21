@@ -41883,26 +41883,39 @@ function Footer(props) {
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         children: props.statusLine
       }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Box2, {
+        justifyContent: "space-between",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+            dimColor: true,
+            children: [
+              "focus:",
+              props.focusMode,
+              " \xB7 follow:",
+              props.follow ? "on" : "off",
+              " \xB7 reverse:",
+              props.reverse ? "on" : "off",
+              " \xB7 merged:",
+              props.mergedView ? "on" : "off"
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
+            dimColor: true,
+            children: [
+              "query:",
+              props.query ? "on" : "off",
+              " \xB7 search:",
+              props.search ? "on" : "off",
+              " \xB7 fps:",
+              props.fps
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text2, {
         dimColor: true,
-        children: [
-          "focus:",
-          props.focusMode,
-          " \xB7 follow:",
-          props.follow ? "on" : "off",
-          " \xB7 reverse:",
-          props.reverse ? "on" : "off",
-          " \xB7 merged:",
-          props.mergedView ? "on" : "off",
-          " \xB7 query:",
-          props.query ? "on" : "off",
-          " \xB7 search:",
-          props.search ? "on" : "off",
-          " \xB7 fps:",
-          props.fps,
-          " \xB7 j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold \xB7 Tab next source \xB7 M merged \xB7 y yank \xB7 ? help \xB7 q quit"
-        ]
-      }, undefined, true, undefined, this)
+        children: "j/k move \xB7 Enter detail \xB7 F filter \xB7 Q query \xB7 / search \xB7 Space fold \xB7 Tab source \xB7 M merged \xB7 yy/yp/yk yank \xB7 ? help \xB7 q quit"
+      }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 }
@@ -41949,18 +41962,41 @@ function Header(props) {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
-        dimColor: true,
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
+        justifyContent: "space-between",
         children: [
-          (props.mergedView ? "all sources" : source?.spec.label) ?? "no source",
-          " \xB7 entries=",
-          source?.entries.length ?? 0,
-          " \xB7 json=",
-          source?.jsonCount ?? 0,
-          " \xB7 text=",
-          source?.textCount ?? 0,
-          " \xB7 dropped=",
-          source?.droppedCount ?? 0
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            dimColor: true,
+            children: (props.mergedView ? "all sources" : source?.spec.label) ?? "no source"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            dimColor: true,
+            children: [
+              "entries=",
+              source?.entries.length ?? 0
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Box2, {
+        justifyContent: "space-between",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            dimColor: true,
+            children: [
+              "json=",
+              source?.jsonCount ?? 0,
+              " \xB7 text=",
+              source?.textCount ?? 0
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
+            dimColor: true,
+            children: [
+              "dropped=",
+              source?.droppedCount ?? 0
+            ]
+          }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
@@ -42076,6 +42112,7 @@ var init_LogList = __esm(async () => {
 
 // src/components/QueryBar.tsx
 function QueryBar(props) {
+  const visibleSuggestions = props.suggestions.slice(0, 5);
   return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -42101,11 +42138,20 @@ function QueryBar(props) {
       }, undefined, true, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
         dimColor: true,
-        children: [
-          "Suggestions: ",
-          props.suggestions.map((item, index) => index === props.selectedSuggestionIndex ? `[${item}]` : item).join(" \xB7 ")
-        ]
-      }, undefined, true, undefined, this)
+        children: "Tab/Shift+Tab cycles suggestions. Enter applies current query."
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Box2, {
+        flexDirection: "column",
+        children: visibleSuggestions.map((item, index) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Text2, {
+          dimColor: index !== props.selectedSuggestionIndex,
+          color: index === props.selectedSuggestionIndex ? "cyan" : undefined,
+          children: [
+            index === props.selectedSuggestionIndex ? ">" : " ",
+            " ",
+            item
+          ]
+        }, item, true, undefined, this))
+      }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 }

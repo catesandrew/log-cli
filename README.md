@@ -63,6 +63,13 @@ Summarize piped stdin as text:
 cat examples/mixed.log | bun run src/cli.ts --summary-text
 ```
 
+Stress-test command ingestion:
+
+```bash
+bun run build
+bun run stress:cmd
+```
+
 ## Input sources
 
 Files:
@@ -157,6 +164,12 @@ bun run typecheck
 bun test
 bun run test:e2e
 bun run build
+```
+
+For a quick high-volume ingest check:
+
+```bash
+bun run stress:cmd
 ```
 
 ## Examples

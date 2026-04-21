@@ -12,7 +12,8 @@
     "build": "bun build ./src/cli.ts --outdir dist --target bun",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "test:e2e": "bun test tests/e2e-smoke.test.ts"
+    "test:e2e": "bun test tests/e2e-smoke.test.ts",
+    "stress:cmd": "bun run dist/cli.js --cmd \"node ./examples/high-volume-generator.mjs\" --summary-json"
   },
   "dependencies": {
     "clipboardy": "^4.0.0",

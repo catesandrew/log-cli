@@ -78,4 +78,15 @@ describe("log e2e smoke", () => {
       );
     }
   });
+
+  test("handles a high-volume synthetic command stream", () => {
+    const output = run([
+      "dist/cli.js",
+      "--cmd",
+      "node ./examples/high-volume-generator.mjs",
+      "--summary-json",
+    ]);
+    expect(output).toContain("\"entries\": 2000");
+    expect(output).toContain("\"json\": 2000");
+  });
 });
