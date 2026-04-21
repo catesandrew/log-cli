@@ -41627,35 +41627,6 @@ function abbreviateStateValue(label, value, maxWidth) {
   return `${prefix}${trimLineForPane(value, maxWidth - prefix.length)}`;
 }
 
-// src/components/JsonTree.tsx
-function JsonTree(props) {
-  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Box2, {
-    flexDirection: "column",
-    children: props.rows.map((row, index) => {
-      const focused = index === props.cursor;
-      const indent = "  ".repeat(row.depth);
-      const marker = row.expandable ? row.expanded ? "\u25BE" : "\u25B8" : " ";
-      return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text2, {
-        color: focused ? "black" : undefined,
-        backgroundColor: focused ? "white" : undefined,
-        children: [
-          indent,
-          marker,
-          " ",
-          row.keyLabel,
-          ": ",
-          row.valueLabel
-        ]
-      }, row.path, true, undefined, this);
-    })
-  }, undefined, false, undefined, this);
-}
-var jsx_dev_runtime3;
-var init_JsonTree = __esm(async () => {
-  await init_ink2();
-  jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
-});
-
 // src/lib/ansi.ts
 function parseAnsiText(input) {
   const regex2 = /\u001b\[([0-9;]+)m/g;
@@ -41703,17 +41674,95 @@ var init_ansi = __esm(() => {
 });
 
 // src/lib/detailText.ts
-function buildTextDetailLines(text, width, maxLines) {
-  const lines = text.split(/\r?\n/).map((line) => trimLineForPane(line, width));
-  if (!maxLines || lines.length <= maxLines) {
-    return lines;
+function trimAnsiSegments(segments, maxWidth) {
+  const visibleLength = segments.reduce((sum, segment) => sum + segment.text.length, 0);
+  if (visibleLength <= maxWidth) {
+    return segments;
   }
-  const visible = lines.slice(0, Math.max(0, maxLines - 1));
-  const last = trimLineForPane(lines[maxLines - 1] ?? "", width);
-  visible.push(last.endsWith("\u2026") ? last : trimLineForPane(`${last}\u2026`, width));
-  return visible;
+  if (maxWidth <= 1) {
+    return [{ text: "\u2026" }];
+  }
+  const trimmed = [];
+  let remaining = maxWidth - 1;
+  for (const segment of segments) {
+    if (remaining <= 0) {
+      break;
+    }
+    if (segment.text.length <= remaining) {
+      trimmed.push(segment);
+      remaining -= segment.text.length;
+      continue;
+    }
+    trimmed.push({
+      ...segment,
+      text: segment.text.slice(0, remaining).replace(/\s+$/u, "")
+    });
+    remaining = 0;
+  }
+  trimmed.push({ text: "\u2026" });
+  return trimmed.filter((segment) => segment.text.length > 0);
 }
-var init_detailText = () => {};
+function buildTextDetailView(input) {
+  const rawLines = input.text.split(/\r?\n/);
+  const totalLines = Math.max(1, rawLines.length);
+  const maxLines = Math.max(1, input.maxLines);
+  const lineNumberWidth = String(totalLines).length;
+  const prefixWidth = lineNumberWidth + 2;
+  const contentWidth = Math.max(1, input.width - prefixWidth);
+  const focusLine = Math.min(Math.max(0, input.focusLine ?? 0), Math.max(0, totalLines - 1));
+  const maxStart = Math.max(0, totalLines - maxLines);
+  const visibleStartLine = totalLines <= maxLines ? 0 : Math.min(maxStart, Math.max(0, focusLine - Math.floor(maxLines / 2)));
+  const visibleEndLine = Math.min(totalLines - 1, visibleStartLine + maxLines - 1);
+  const matchSet = new Set(input.matches ?? []);
+  return {
+    lines: rawLines.slice(visibleStartLine, visibleEndLine + 1).map((line, index) => {
+      const lineNumber = visibleStartLine + index;
+      return {
+        lineNumber,
+        segments: trimAnsiSegments(parseAnsiText(line), contentWidth),
+        isMatch: matchSet.has(lineNumber),
+        isCurrent: lineNumber === focusLine && matchSet.has(lineNumber)
+      };
+    }),
+    totalLines,
+    visibleStartLine,
+    visibleEndLine,
+    hiddenAbove: visibleStartLine,
+    hiddenBelow: Math.max(0, totalLines - visibleEndLine - 1)
+  };
+}
+var init_detailText = __esm(() => {
+  init_ansi();
+});
+
+// src/components/JsonTree.tsx
+function JsonTree(props) {
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: props.rows.map((row, index) => {
+      const focused = index === props.cursor;
+      const indent = "  ".repeat(row.depth);
+      const marker = row.expandable ? row.expanded ? "\u25BE" : "\u25B8" : " ";
+      return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text2, {
+        color: focused ? "black" : undefined,
+        backgroundColor: focused ? "white" : undefined,
+        children: [
+          indent,
+          marker,
+          " ",
+          row.keyLabel,
+          ": ",
+          row.valueLabel
+        ]
+      }, row.path, true, undefined, this);
+    })
+  }, undefined, false, undefined, this);
+}
+var jsx_dev_runtime3;
+var init_JsonTree = __esm(async () => {
+  await init_ink2();
+  jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+});
 
 // src/lib/textHighlight.ts
 function buildHighlightedSegments(text, term) {
@@ -41744,57 +41793,34 @@ function buildHighlightedSegments(text, term) {
 
 // src/components/TextDetail.tsx
 function TextDetail(props) {
-  const width = Math.max(16, props.width ?? 40);
-  const lines = buildTextDetailLines(props.text, width, props.maxLines);
-  if (lines.length > 1) {
-    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
-      flexDirection: "column",
-      children: lines.map((line, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(TextDetail, {
-        text: line,
-        searchTerm: props.searchTerm,
-        width
-      }, `${line}-${index}`, false, undefined, this))
-    }, undefined, false, undefined, this);
-  }
-  const displayText = lines[0] ?? "";
-  const segments = parseAnsiText(displayText);
-  if (segments.length === 0) {
-    return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(PlainText, {
-      text: displayText,
-      searchTerm: props.searchTerm
-    }, undefined, false, undefined, this);
-  }
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(AnsiText, {
-    segments,
-    searchTerm: props.searchTerm
-  }, undefined, false, undefined, this);
-}
-function PlainText(props) {
-  const segments = buildHighlightedSegments(props.text, props.searchTerm ?? "");
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-    wrap: "wrap",
-    children: segments.map((segment, index) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-      backgroundColor: segment.highlight ? "yellow" : undefined,
-      color: segment.highlight ? "black" : undefined,
-      children: segment.text
-    }, `${segment.text}-${index}`, false, undefined, this))
-  }, undefined, false, undefined, this);
-}
-function AnsiText(props) {
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-    wrap: "wrap",
-    children: props.segments.flatMap((segment, index) => buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
-      color: piece.highlight ? "black" : segment.color,
-      backgroundColor: piece.highlight ? "yellow" : undefined,
-      bold: segment.bold,
-      children: piece.text
-    }, `${segment.text}-${index}-${pieceIndex}`, false, undefined, this)))
+  const lineNumberWidth = String(Math.max(1, props.view.totalLines)).length;
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Box2, {
+    flexDirection: "column",
+    children: props.view.lines.map((line) => {
+      const marker = line.isCurrent ? ">" : line.isMatch ? "*" : " ";
+      const prefix = `${marker}${String(line.lineNumber + 1).padStart(lineNumberWidth)} `;
+      return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+        wrap: "truncate-end",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+            dimColor: !line.isCurrent,
+            color: line.isCurrent ? "cyan" : undefined,
+            bold: line.isCurrent,
+            children: prefix
+          }, undefined, false, undefined, this),
+          line.segments.flatMap((segment, segmentIndex) => buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text2, {
+            color: piece.highlight ? "black" : segment.color,
+            backgroundColor: piece.highlight ? "yellow" : undefined,
+            bold: segment.bold,
+            children: piece.text
+          }, `${line.lineNumber}-${segmentIndex}-${pieceIndex}`, false, undefined, this)))
+        ]
+      }, `${line.lineNumber}-${prefix}`, true, undefined, this);
+    })
   }, undefined, false, undefined, this);
 }
 var jsx_dev_runtime4;
 var init_TextDetail = __esm(async () => {
-  init_ansi();
-  init_detailText();
   await init_ink2();
   jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
 });
@@ -41808,6 +41834,17 @@ function DetailPane(props) {
     }, undefined, false, undefined, this);
   }
   const width = Math.max(24, props.paneWidth ?? 40);
+  const headerLineCount = props.searchTerm ? 3 : 2;
+  const contentMaxLines = Math.max(3, (props.paneHeight ?? 10) - headerLineCount);
+  const textView = buildTextDetailView({
+    text: props.entry.raw,
+    width: Math.max(16, width - 1),
+    maxLines: contentMaxLines,
+    focusLine: props.searchTerm ? props.detailCursor : 0,
+    matches: props.searchMatches
+  });
+  const detailWindowLabel = textView.hiddenAbove > 0 || textView.hiddenBelow > 0 ? `lines:${textView.visibleStartLine + 1}-${textView.visibleEndLine + 1}/${textView.totalLines}` : undefined;
+  const searchLabel = props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}${detailWindowLabel ? ` \xB7 ${detailWindowLabel}` : ""}` : detailWindowLabel;
   return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
     flexDirection: "column",
     children: [
@@ -41819,21 +41856,18 @@ function DetailPane(props) {
         dimColor: true,
         children: trimLineForPane(`${props.mergedView && props.entry.sourceLabel ? `${props.entry.sourceLabel} \xB7 ` : ""}${props.entry.prefix ? `${props.entry.prefix} \xB7 ` : ""}${props.entry.timeText ?? "no-time"} \xB7 ${String(props.entry.levelNormalized)}`, width)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
+      searchLabel ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Text2, {
         dimColor: true,
-        children: trimLineForPane(props.searchTerm ? `search:${props.searchTerm} \xB7 matches:${props.searchMatches.length}` : "search:off", width)
-      }, undefined, false, undefined, this),
+        children: trimLineForPane(searchLabel, width)
+      }, undefined, false, undefined, this) : null,
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Box2, {
-        marginTop: 1,
         flexDirection: "column",
         children: props.entry.kind === "json" && props.detailMode === "tree" ? /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(JsonTree, {
           rows: props.jsonRows,
           cursor: props.jsonCursor
         }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TextDetail, {
-          text: props.entry.raw,
-          searchTerm: props.searchTerm,
-          width: Math.max(16, width - 2),
-          maxLines: 10
+          view: textView,
+          searchTerm: props.searchTerm
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this)
     ]
@@ -41841,6 +41875,7 @@ function DetailPane(props) {
 }
 var jsx_dev_runtime5;
 var init_DetailPane = __esm(async () => {
+  init_detailText();
   await __promiseAll([
     init_ink2(),
     init_JsonTree(),
@@ -42158,7 +42193,7 @@ function Header(props) {
           }, undefined, false, undefined, this),
           /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text2, {
             dimColor: true,
-            children: props.mergedView ? "merged" : `tab ${props.activeIndex + 1}/${props.totalSources}`
+            children: props.mergeIgnored ? "merge ignored" : props.mergedView ? "merged" : `tab ${props.activeIndex + 1}/${props.totalSources}`
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
@@ -43714,6 +43749,7 @@ function LogScreen() {
       activeIndex: activeSourceIndex,
       totalSources: sources.length,
       mergedView,
+      mergeIgnored,
       columns: size.columns,
       sourceLabels: sources.map((source) => source.spec.label),
       mergedFilterActive: Boolean(mergedFilter),
@@ -43796,13 +43832,30 @@ function LogScreen() {
           }, undefined, false, undefined, this) : focusMode === "search" ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(SearchBar, {
             value: detailSearchDraft,
             onChange: (value) => setState((prev) => ({ ...prev, detailSearchDraft: value })),
-            onSubmit: (value) => setState((prev) => ({
-              ...prev,
-              focusMode: "detail",
-              detailSearchDraft: "",
-              detailSearchTerm: value,
-              detailSearchMatches: selectedEntry?.kind === "json" && detailMode === "tree" ? createDetailSearch(jsonRows, value).matches : createTextSearch(selectedEntry?.raw ?? "", value).matches
-            }))
+            onSubmit: (value) => setState((prev) => {
+              const matches = selectedEntry?.kind === "json" && detailMode === "tree" ? createDetailSearch(jsonRows, value).matches : createTextSearch(selectedEntry?.raw ?? "", value).matches;
+              const nextCursor = matches[0] ?? 0;
+              if (prev.mergedView) {
+                return {
+                  ...prev,
+                  focusMode: "detail",
+                  detailSearchDraft: "",
+                  detailSearchTerm: value,
+                  detailSearchMatches: matches,
+                  mergedDetailCursor: nextCursor
+                };
+              }
+              return updateCurrentSource({
+                ...prev,
+                focusMode: "detail",
+                detailSearchDraft: "",
+                detailSearchTerm: value,
+                detailSearchMatches: matches
+              }, (source) => ({
+                ...source,
+                detailCursor: nextCursor
+              }));
+            })
           }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(DetailPane, {
             entry: selectedEntry,
             detailMode,
@@ -43810,8 +43863,10 @@ function LogScreen() {
             jsonCursor: activeSource?.detailCursor ?? 0,
             searchTerm: detailSearchTerm,
             searchMatches: detailMatches,
+            detailCursor: activeSource?.detailCursor ?? 0,
             mergedView,
-            paneWidth: paneWidths.detailWidth
+            paneWidth: paneWidths.detailWidth,
+            paneHeight: visibleCount
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]
@@ -57680,7 +57735,7 @@ function getDefaultAppState(sources, config2, options) {
 init_sourceManager();
 
 // src/lib/summary.ts
-function buildSummary(sources, entriesBySource) {
+function buildSummary(sources, entriesBySource, metadata) {
   const sourceSummaries = sources.map((source) => {
     const entries = entriesBySource.get(source.id) ?? [];
     const json2 = entries.filter((entry) => entry.kind === "json").length;
@@ -57695,22 +57750,24 @@ function buildSummary(sources, entriesBySource) {
   });
   return {
     sources: sourceSummaries,
-    totalEntries: sourceSummaries.reduce((sum, source) => sum + source.entries, 0)
+    totalEntries: sourceSummaries.reduce((sum, source) => sum + source.entries, 0),
+    ...metadata ? { metadata } : {}
   };
 }
-function buildFilteredSummary(sources, entriesBySource, filterText, queryText) {
+function buildFilteredSummary(sources, entriesBySource, filterText, queryText, metadata) {
   const filter = buildFilter(filterText);
   const query = buildQuery(queryText);
   const filtered = new Map;
   for (const [sourceId, entries] of entriesBySource) {
     filtered.set(sourceId, entries.filter((entry) => filter(entry) && query(entry)));
   }
-  return buildSummary(sources, filtered);
+  return buildSummary(sources, filtered, metadata);
 }
 
 // src/main.tsx
 async function runSummary(options, fileArgs) {
   const config2 = await loadConfig(process.cwd());
+  const follow = options.noFollow === false ? false : true;
   const sources = resolveSources({ files: fileArgs, url: options.url, cmd: options.cmd });
   const error48 = validateSources(sources);
   if (error48) {
@@ -57736,7 +57793,21 @@ async function runSummary(options, fileArgs) {
       resolve();
     }, 300);
   });
-  const summary = options.filter || options.query ? buildFilteredSummary(sources, entriesBySource, options.filter ?? "", options.query ?? "") : buildSummary(sources, entriesBySource);
+  const summary = options.filter || options.query ? buildFilteredSummary(sources, entriesBySource, options.filter ?? "", options.query ?? "", {
+    mergedRequested: Boolean(options.merge),
+    mergedActive: Boolean(options.merge && sources.length > 1),
+    reverse: Boolean(options.reverse),
+    follow,
+    ...options.filter ? { filter: options.filter } : {},
+    ...options.query ? { query: options.query } : {}
+  }) : buildSummary(sources, entriesBySource, {
+    mergedRequested: Boolean(options.merge),
+    mergedActive: Boolean(options.merge && sources.length > 1),
+    reverse: Boolean(options.reverse),
+    follow,
+    ...options.filter ? { filter: options.filter } : {},
+    ...options.query ? { query: options.query } : {}
+  });
   if (options.summaryJson) {
     process.stdout.write(JSON.stringify(summary, null, 2) + `
 `);
@@ -57747,7 +57818,7 @@ async function runSummary(options, fileArgs) {
 }
 async function main() {
   const program2 = new Command("log");
-  program2.argument("[files...]", "Log files to open").option("--url <url>", "Read lines from a streaming HTTP GET response").option("--cmd <command>", "Spawn a command and read stdout/stderr as lines").option("--max <n>", "Maximum entries per source", "50000").option("--batch-ms <n>", "Batch interval for UI flushes", "50").option("--merge", "Start the interactive TUI with merged multi-source view enabled").option("--filter <expr>", "Apply a startup filter expression").option("--query <expr>", "Apply a startup boolean query").option("--reverse", "Start with reverse ordering enabled").option("--no-follow", "Start with follow mode disabled").option("--summary-json", "Read input and output a JSON summary instead of starting the TUI").option("--summary-text", "Read input and output a text summary instead of starting the TUI").helpOption("-h, --help", "Display help");
+  program2.argument("[files...]", "Log files to open").option("--url <url>", "Read lines from a streaming HTTP GET response").option("--cmd <command>", "Spawn a command and read stdout/stderr as lines").option("--max <n>", "Maximum entries per source", "50000").option("--batch-ms <n>", "Batch interval for UI flushes", "50").option("--merge", "Start the interactive TUI with merged multi-source view enabled (ignored with one source)").option("--filter <expr>", "Apply a startup filter expression").option("--query <expr>", "Apply a startup boolean query").option("--reverse", "Start with reverse ordering enabled").option("--no-follow", "Start with follow mode disabled").option("--summary-json", "Read input and output a JSON summary instead of starting the TUI").option("--summary-text", "Read input and output a text summary instead of starting the TUI").helpOption("-h, --help", "Display help");
   const rawArgs = process.argv.slice(2);
   const normalizedInput = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
   if (normalizedInput.includes("--help") || normalizedInput.includes("-h")) {
@@ -57757,6 +57828,7 @@ async function main() {
   const parsed = parseTopLevelArgs(normalizedInput);
   const options = parsed.options;
   const fileArgs = parsed.files;
+  const follow = options.noFollow === false ? false : true;
   if (options.summaryJson || options.summaryText || !process.stdout.isTTY) {
     await runSummary(options, fileArgs);
     return;
@@ -57778,7 +57850,7 @@ async function main() {
       defaultFilter: options.filter,
       defaultQuery: options.query,
       reverse: Boolean(options.reverse),
-      follow: options.follow
+      follow
     })
   }, renderAndRun);
 }

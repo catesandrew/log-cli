@@ -1,70 +1,43 @@
 import React from "react";
 import { Box, Text } from "../ink";
-import { parseAnsiText } from "../lib/ansi";
-import { buildTextDetailLines } from "../lib/detailText";
+import type { TextDetailView } from "../lib/detailText";
 import { buildHighlightedSegments } from "../lib/textHighlight";
 
-export function TextDetail(props: { text: string; searchTerm?: string; width?: number; maxLines?: number }): React.ReactNode {
-  const width = Math.max(16, props.width ?? 40);
-  const lines = buildTextDetailLines(props.text, width, props.maxLines);
-  if (lines.length > 1) {
-    return (
-      <Box flexDirection="column">
-        {lines.map((line, index) => (
-          <TextDetail
-            key={`${line}-${index}`}
-            text={line}
-            searchTerm={props.searchTerm}
-            width={width}
-          />
-        ))}
-      </Box>
-    );
-  }
-
-  const displayText = lines[0] ?? "";
-  const segments = parseAnsiText(displayText);
-  if (segments.length === 0) {
-    return <PlainText text={displayText} searchTerm={props.searchTerm} />;
-  }
+export function TextDetail(props: {
+  view: TextDetailView;
+  searchTerm?: string;
+}): React.ReactNode {
+  const lineNumberWidth = String(Math.max(1, props.view.totalLines)).length;
 
   return (
-    <AnsiText segments={segments} searchTerm={props.searchTerm} />
-  );
-}
-
-function PlainText(props: { text: string; searchTerm?: string }): React.ReactNode {
-  const segments = buildHighlightedSegments(props.text, props.searchTerm ?? "");
-  return (
-    <Text wrap="wrap">
-      {segments.map((segment, index) => (
-        <Text
-          key={`${segment.text}-${index}`}
-          backgroundColor={segment.highlight ? "yellow" : undefined}
-          color={segment.highlight ? "black" : undefined}
-        >
-          {segment.text}
-        </Text>
-      ))}
-    </Text>
-  );
-}
-
-function AnsiText(props: { segments: ReturnType<typeof parseAnsiText>; searchTerm?: string }): React.ReactNode {
-  return (
-    <Text wrap="wrap">
-      {props.segments.flatMap((segment, index) =>
-        buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => (
-          <Text
-            key={`${segment.text}-${index}-${pieceIndex}`}
-            color={piece.highlight ? "black" : segment.color}
-            backgroundColor={piece.highlight ? "yellow" : undefined}
-            bold={segment.bold}
-          >
-            {piece.text}
+    <Box flexDirection="column">
+      {props.view.lines.map(line => {
+        const marker = line.isCurrent ? ">" : line.isMatch ? "*" : " ";
+        const prefix = `${marker}${String(line.lineNumber + 1).padStart(lineNumberWidth)} `;
+        return (
+          <Text key={`${line.lineNumber}-${prefix}`} wrap="truncate-end">
+            <Text
+              dimColor={!line.isCurrent}
+              color={line.isCurrent ? "cyan" : undefined}
+              bold={line.isCurrent}
+            >
+              {prefix}
+            </Text>
+            {line.segments.flatMap((segment, segmentIndex) =>
+              buildHighlightedSegments(segment.text, props.searchTerm ?? "").map((piece, pieceIndex) => (
+                <Text
+                  key={`${line.lineNumber}-${segmentIndex}-${pieceIndex}`}
+                  color={piece.highlight ? "black" : segment.color}
+                  backgroundColor={piece.highlight ? "yellow" : undefined}
+                  bold={segment.bold}
+                >
+                  {piece.text}
+                </Text>
+              )),
+            )}
           </Text>
-        )),
-      )}
-    </Text>
+        );
+      })}
+    </Box>
   );
 }

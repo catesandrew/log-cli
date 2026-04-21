@@ -663,16 +663,36 @@ export function LogScreen(): React.ReactNode {
                 value={detailSearchDraft}
                 onChange={value => setState(prev => ({ ...prev, detailSearchDraft: value }))}
                 onSubmit={value =>
-                  setState(prev => ({
-                    ...prev,
-                    focusMode: "detail",
-                    detailSearchDraft: "",
-                    detailSearchTerm: value,
-                    detailSearchMatches:
+                  setState(prev => {
+                    const matches =
                       selectedEntry?.kind === "json" && detailMode === "tree"
                         ? createDetailSearch(jsonRows, value).matches
-                        : createTextSearch(selectedEntry?.raw ?? "", value).matches,
-                  }))
+                        : createTextSearch(selectedEntry?.raw ?? "", value).matches;
+                    const nextCursor = matches[0] ?? 0;
+                    if (prev.mergedView) {
+                      return {
+                        ...prev,
+                        focusMode: "detail",
+                        detailSearchDraft: "",
+                        detailSearchTerm: value,
+                        detailSearchMatches: matches,
+                        mergedDetailCursor: nextCursor,
+                      };
+                    }
+                    return updateCurrentSource(
+                      {
+                        ...prev,
+                        focusMode: "detail",
+                        detailSearchDraft: "",
+                        detailSearchTerm: value,
+                        detailSearchMatches: matches,
+                      },
+                      source => ({
+                        ...source,
+                        detailCursor: nextCursor,
+                      }),
+                    );
+                  })
                 }
               />
             ) : (
@@ -683,8 +703,10 @@ export function LogScreen(): React.ReactNode {
                 jsonCursor={activeSource?.detailCursor ?? 0}
                 searchTerm={detailSearchTerm}
                 searchMatches={detailMatches}
+                detailCursor={activeSource?.detailCursor ?? 0}
                 mergedView={mergedView}
                 paneWidth={paneWidths.detailWidth}
+                paneHeight={visibleCount}
               />
             )}
           </Box>
