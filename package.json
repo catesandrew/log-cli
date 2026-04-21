@@ -10,6 +10,7 @@
     "dev": "bun run src/cli.ts",
     "start": "bun run src/cli.ts",
     "build": "bun build ./src/cli.ts --outdir dist --target bun",
+    "build:exe": "bun build ./src/cli.ts --compile --outfile dist/log-cli",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:e2e": "bun test tests/e2e-smoke.test.ts",
