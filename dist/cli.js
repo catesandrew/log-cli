@@ -63248,6 +63248,10 @@ var init_cmdSource = __esm(() => {
 import fs6 from "fs";
 import readline2 from "readline";
 function startFileSource(source, events, config2) {
+  let isFifo = false;
+  try {
+    isFifo = fs6.statSync(source.filePath).isFIFO();
+  } catch {}
   const stream = fs6.createReadStream(source.filePath, { encoding: "utf8" });
   const rl = readline2.createInterface({ input: stream, crlfDelay: Infinity });
   let lineNumber = 0;
@@ -63266,15 +63270,20 @@ function startFileSource(source, events, config2) {
     try {
       for await (const line of rl) {
         lineNumber += 1;
-        batch.push(parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }, config2));
-        if (batch.length >= 200) {
-          events.onEntries(source.id, batch.splice(0, batch.length));
+        const entry = parseLine(line, { sourceId: source.id, sourceLabel: source.label, lineNumber }, config2);
+        if (isFifo) {
+          events.onEntries(source.id, [entry]);
+        } else {
+          batch.push(entry);
+          if (batch.length >= 200) {
+            events.onEntries(source.id, batch.splice(0, batch.length));
+          }
         }
       }
       if (batch.length > 0) {
         events.onEntries(source.id, batch);
       }
-      finish(`Loaded file source ${source.label}`);
+      finish(isFifo ? `${source.label} stream ended` : `Loaded file source ${source.label}`);
     } catch (error48) {
       finish(`File source error: ${error48 instanceof Error ? error48.message : String(error48)}`);
     }
@@ -64158,16 +64167,40 @@ var {
 await init_ink2();
 
 // src/interactiveHelpers.tsx
-function getRenderContext() {
+import { openSync } from "fs";
+import { ReadStream } from "tty";
+function openControllingTty() {
+  const devicePath = process.platform === "win32" ? "CONIN$" : "/dev/tty";
+  try {
+    return new ReadStream(openSync(devicePath, "r"));
+  } catch {
+    return null;
+  }
+}
+function buildRenderContext(streams, options) {
+  const fallback = !streams.stdin.isTTY && streams.stdout.isTTY ? (options?.openInteractiveInput ?? openControllingTty)() : null;
+  const input = fallback ?? streams.stdin;
   return {
     renderOptions: {
-      stdout: process.stdout,
-      stderr: process.stderr,
-      stdin: process.stdin,
+      stdout: streams.stdout,
+      stderr: streams.stderr,
+      stdin: input,
       patchConsole: false,
       exitOnCtrlC: true
+    },
+    dispose() {
+      if (fallback && typeof fallback.destroy === "function") {
+        fallback.destroy();
+      }
     }
   };
+}
+function getRenderContext() {
+  return buildRenderContext({
+    stdout: process.stdout,
+    stderr: process.stderr,
+    stdin: process.stdin
+  });
 }
 async function renderAndRun(root, element) {
   root.render(element);
@@ -64298,8 +64331,16 @@ function validateSources(sources) {
     return "No input sources provided. Pass files, --url, --cmd, or pipe stdin.";
   }
   for (const source of sources) {
-    if (source.kind === "file" && source.filePath && !fs7.existsSync(source.filePath)) {
-      return `File not found: ${source.filePath}`;
+    if (source.kind === "file" && source.filePath) {
+      let stats;
+      try {
+        stats = fs7.statSync(source.filePath);
+      } catch {
+        return `File not found: ${source.filePath}`;
+      }
+      if (stats.isDirectory()) {
+        return `Path is a directory, not a file: ${source.filePath}`;
+      }
     }
   }
   return null;
@@ -64531,20 +64572,25 @@ async function main() {
   if (error48) {
     throw await exitWithMessage(error48);
   }
-  const root = await createRoot(getRenderContext().renderOptions);
-  await launchRepl(root, {
-    initialState: getDefaultAppState(sources, {
-      ...config2,
-      maxEntries: Number(options.max ?? config2.maxEntries),
-      batchMs: Number(options.batchMs ?? config2.batchMs)
-    }, {
-      mergedView: Boolean(options.merge),
-      defaultFilter: options.filter,
-      defaultQuery: options.query,
-      reverse: Boolean(options.reverse),
-      follow
-    })
-  }, renderAndRun);
+  const renderContext = getRenderContext();
+  const root = await createRoot(renderContext.renderOptions);
+  try {
+    await launchRepl(root, {
+      initialState: getDefaultAppState(sources, {
+        ...config2,
+        maxEntries: Number(options.max ?? config2.maxEntries),
+        batchMs: Number(options.batchMs ?? config2.batchMs)
+      }, {
+        mergedView: Boolean(options.merge),
+        defaultFilter: options.filter,
+        defaultQuery: options.query,
+        reverse: Boolean(options.reverse),
+        follow
+      })
+    }, renderAndRun);
+  } finally {
+    renderContext.dispose();
+  }
 }
 
 // src/cli.ts

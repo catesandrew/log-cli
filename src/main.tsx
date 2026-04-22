@@ -161,26 +161,31 @@ export async function main(): Promise<void> {
     throw await exitWithMessage(error);
   }
 
-  const root = await createRoot(getRenderContext().renderOptions);
-  await launchRepl(
-    root,
-    {
-      initialState: getDefaultAppState(
-        sources,
-        {
-          ...config,
-          maxEntries: Number(options.max ?? config.maxEntries),
-          batchMs: Number(options.batchMs ?? config.batchMs),
-        },
-        {
-          mergedView: Boolean(options.merge),
-          defaultFilter: options.filter,
-          defaultQuery: options.query,
-          reverse: Boolean(options.reverse),
-          follow,
-        },
-      ),
-    },
-    renderAndRun,
-  );
+  const renderContext = getRenderContext();
+  const root = await createRoot(renderContext.renderOptions);
+  try {
+    await launchRepl(
+      root,
+      {
+        initialState: getDefaultAppState(
+          sources,
+          {
+            ...config,
+            maxEntries: Number(options.max ?? config.maxEntries),
+            batchMs: Number(options.batchMs ?? config.batchMs),
+          },
+          {
+            mergedView: Boolean(options.merge),
+            defaultFilter: options.filter,
+            defaultQuery: options.query,
+            reverse: Boolean(options.reverse),
+            follow,
+          },
+        ),
+      },
+      renderAndRun,
+    );
+  } finally {
+    renderContext.dispose();
+  }
 }

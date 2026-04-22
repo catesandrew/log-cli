@@ -26,10 +26,25 @@ describe("parseLine", () => {
     expect(entry.message).toBe("slow request");
   });
 
+  test("parses overmind-style padded service prefixes before JSON", () => {
+    const entry = parseLine(
+      'web              | {"ctx":{"component":"app-store","message":"Cannot do operations on a non-existent table"},"msg":"[Server] next listBootstraps failed"}',
+      {
+        sourceId: "s1",
+        lineNumber: 3,
+      },
+    );
+
+    expect(entry.kind).toBe("json");
+    expect(entry.prefix).toBe("web");
+    expect(entry.message).toBe("[Server] next listBootstraps failed");
+    expect(entry.fieldIndex["ctx.component"]).toBe("app-store");
+  });
+
   test("keeps non-json as plain text", () => {
     const entry = parseLine("plain text line", {
       sourceId: "s1",
-      lineNumber: 3,
+      lineNumber: 4,
     });
 
     expect(entry.kind).toBe("text");
