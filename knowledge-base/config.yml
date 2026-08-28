@@ -1,0 +1,20 @@
+# agent-ops knowledge-base convention (see catesworks/agent-ops PLAN.md).
+# Keep this thin -- only what the eval gates specifically need.
+
+# What counts as "tested" for completeness-eval. Run from the repo root after
+# the agent's own changes.
+test_command: "bun test && tsc --noEmit"
+
+# Gates tov-eval + publish-safety-eval. This repo has no publish step (private
+# npm package, no site) -- a public GitHub repo alone doesn't count as
+# "publishing" in the PLAN.md sense.
+public_facing: false
+
+# Point at existing conventions docs instead of duplicating them here.
+# log-cli has neither yet.
+conventions_files: []
+
+notes: |
+  Pilot repo for agent-ops (see PLAN.md's "Pilot repo" decision). Small,
+  self-contained CLI tool -- low blast radius, good first target to prove the
+  dispatch -> eval -> PR loop end to end.
