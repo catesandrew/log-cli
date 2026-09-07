@@ -1,25 +1,28 @@
 name: ci
 
-# Runs typecheck so the agent-ops dispatch pipeline has a real status check to gate
-# auto-merge on -- until this exists, decideAutoMerge() in agent-ops' scripts/dispatch
-# always holds PRs for a human, dependency bumps included, since it requires
-# ciState === "success".
+# Runs typecheck + test so the agent-ops dispatch pipeline has a real status
+# check to gate auto-merge on -- decideAutoMerge() in agent-ops'
+# scripts/dispatch requires ciState === "success", matching
+# knowledge-base/config.yml's test_command ("bun test && tsc --noEmit").
 #
-# `bun test` deliberately left OUT of CI for now (2026-08-29): `main` already has 8
-# pre-existing test failures unrelated to this workflow, and knowledge-base/config.yml's
-# test_command ("bun test && tsc --noEmit") would keep this permanently red -- and
-# auto-merge permanently blocked -- until those are fixed as a separate piece of work.
-# Re-add `bun test` here once that's done, and this comment can go.
+# `bun test` was left out 2026-08-29 through 2026-09-07: main had 8
+# pre-existing e2e-smoke test failures caused by two committed fixture files
+# (examples/mixed.log, examples/mixed-2.log) being silently untracked --
+# excluded by a contributor's global `*.log` gitignore rule, with no
+# git-status signal that they were ever missing. Fixed via an explicit
+# `!examples/*.log` repo-level gitignore exception; `bun test` re-added here
+# now that main is green.
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
-  typecheck:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install
       - run: bun run typecheck
+      - run: bun test
