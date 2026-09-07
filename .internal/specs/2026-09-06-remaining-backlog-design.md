@@ -36,12 +36,12 @@ these "8 pre-existing test failures," which permanently blocks the agent-ops
 auto-merge gate (`ciState === "success"` requirement).
 
 Items:
-1. Restore/create `examples/mixed.log` and `examples/mixed-2.log` fixture
-   content matching what tests and README expect (mixed.log: 5 entries / 3
-   json / 2 text, containing at least one `level="error"` entry with
-   `message` containing `timeout`; mixed-2.log: compatible content for merge
-   tests expecting `totalEntries: 2` under `message:line` filter and
-   `level = "unknown"` query). Fixes all 8 failing tests. [S]
+1. Restore/create `examples/mixed.log` and `examples/mixed-2.log`.
+   Acceptance criterion: content must satisfy every assertion in
+   `tests/e2e-smoke.test.ts` (all 8 currently-failing cases pass) and every
+   reference to these files in `README.md`. Do not hand-guess exact byte
+   content in the plan — derive it deterministically from the full test file
+   at implementation time. [S]
 2. Re-enable `bun test` in `.github/workflows/ci.yml` once green, remove the
    explanatory comment. [S]
 3. Add `bun run test:e2e` and `bun run build` as CI steps (currently CI only
@@ -68,7 +68,12 @@ by name correspondence:
    fold/unfold interaction — not covered individually (only indirectly via
    `e2e-smoke.test.ts` and `mergedList.test.tsx`). [M]
 
-## Epic 3 — Feature Enhancements
+## Epic 3 — Feature Enhancements (P3, lower priority than Epics 1/2/4)
+
+The only epic grounded in absence-of-feature rather than a concrete
+bug/gap/test failure — no user-demand evidence exists for any of these 5
+items. Kept in the backlog since each is plausible and well-scoped, but
+deprioritized relative to the CI-health, coverage, and packaging epics.
 
 Confirmed via README (full feature list) and grep — none of the following
 exist today:
@@ -104,14 +109,57 @@ Confirmed via `package.json`, `bin/log`, `knowledge-base/config.yml`, and
 
 Per explicit user instruction, each epic above becomes its own bead
 (`type=epic`), then run `oh-my-claudecode:plan` (consensus + architect
-review) against that epic to produce an implementation plan. Seed beads from
-the produced plan as child tasks under the epic, with parent-child deps +
-embedded acceptance criteria, then `bd dep add`/`bd batch` for ordering
-between steps (e.g., Epic 1 item 2 depends on item 1; Epic 4 item 1 depends on
-Epic 1 being green).
+review) against that epic to produce an implementation plan — uniformly,
+including small epics like Epic 1. Seed beads from the produced plan as
+child tasks under the epic, with parent-child deps + embedded acceptance
+criteria, then `bd dep add`/`bd batch` for ordering between steps.
+
+Known cross-item dependencies to encode:
+- Epic 1 item 2 (re-enable `bun test` in CI) is blocked by Epic 1 item 1
+  (fixture restore).
+- Epic 1 item 3 (add `test:e2e`/`build` to CI) can run in parallel with item 2.
+- Epic 2 and Epic 3 items have no dependency on Epic 1 or each other.
+- Epic 4 items have no hard dependency on Epic 1 being green, though
+  verifying `build:exe` (item 1) is more meaningful once the suite is green.
 
 ## Out of scope / explicitly deferred
 
 - No speculative features beyond what's listed (YAGNI) — e.g. no plugin
   system, no remote/multi-user mode, no GUI, nothing not grounded in a gap
   found by direct repo inspection.
+
+## Stress Test Results: remaining-backlog design
+
+### Resolved Decisions
+- Security (cmdSource/urlSource take user-supplied command/URL): same trust
+  boundary as the invoking user's own shell — N/A, no design change.
+- Fixture-content risk: don't pin guessed byte content in the spec; Epic 1
+  item 1's acceptance criterion is "satisfies every assertion in
+  tests/e2e-smoke.test.ts and README.md" instead.
+- Plan overhead: keep uniform omc-plan (consensus + architect) for every
+  epic, no exceptions for small ones.
+- Epic 3 priority: kept all 5 items, marked P3/lower priority than Epics
+  1/2/4 since it's the only speculative (non-gap-driven) epic.
+- Epic dependencies: pinned explicitly (Epic1.2 blocked-by Epic1.1; Epic1.3
+  parallel with Epic1.2; Epic2/Epic3 independent; Epic4 has no hard
+  dependency on Epic1).
+- Epic grouping: Epic 1 and Epic 2 stay separate — different urgency
+  (P0 bug fix vs. ongoing coverage work).
+- Plan authority: each epic's own omc-plan (consensus + architect) is
+  authoritative for that epic's final child breakdown; this doc's item
+  lists are a starting proposal, not a locked spec.
+
+### Changes Made
+- Epic 1 item 1: replaced guessed fixture content with an acceptance
+  criterion.
+- Epic 3: added priority/rationale framing (P3, deprioritized).
+- Process section: replaced vague dependency example with explicit
+  cross-item dependencies; added "uniformly, including small epics."
+
+### Deferred / Parking Lot
+- None.
+
+### Confidence Assessment
+- Overall: High
+- Areas of concern: none remaining; Epic 1's root cause is directly
+  confirmed (git history + failing test run), not inferred.
